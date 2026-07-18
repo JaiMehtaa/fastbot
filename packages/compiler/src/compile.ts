@@ -3,9 +3,34 @@ import type {
   CompiledConfig,
   DraftConfig,
   MenuEntry,
+  PrimitiveKey,
   StateTableEntry,
 } from "@whatsapp-bot-platform/shared-types";
 import { validateDraft } from "./validate.js";
+
+/**
+ * Assigns a state into the compiled state table, throwing if a different
+ * primitive already claimed that state name. Without this guard, two
+ * primitives sharing a state name would silently overwrite each other in
+ * `stateTable` — the registry-level `checkRegistryConsistency` check (see
+ * packages/schema) is the first line of defense, but this is the second:
+ * it fails loudly at compile time even if that check was ever skipped.
+ */
+export function assignStateTableEntry(
+  stateTable: Record<string, StateTableEntry>,
+  state: string,
+  primitiveKey: PrimitiveKey,
+  handlerArgs: Record<string, unknown>,
+): void {
+  const existing = stateTable[state];
+  if (existing && existing.primitiveKey !== primitiveKey) {
+    throw new Error(
+      `State "${state}" is claimed by both "${existing.primitiveKey}" and "${primitiveKey}" — ` +
+        `primitives must not share state names.`,
+    );
+  }
+  stateTable[state] = { primitiveKey, handlerArgs };
+}
 
 /**
  * Compiles a draft config into a CompiledConfig: a generated root-menu spec
@@ -48,7 +73,7 @@ export function compile(draftConfig: DraftConfig, sourceId: string = draftConfig
     }
 
     for (const state of schema.stateContract) {
-      stateTable[state] = { primitiveKey, handlerArgs };
+      assignStateTableEntry(stateTable, state, primitiveKey, handlerArgs);
     }
   }
 

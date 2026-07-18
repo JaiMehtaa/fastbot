@@ -115,6 +115,29 @@ test("selecting booking without business_info.hours fails the cross-primitive ch
   );
 });
 
+test("an invalid optional field surfaces as an issue, not a missing-required-field", () => {
+  const draft = retailDraft({
+    business_info: {
+      business_name: "Zap Home Care",
+      description: "We make dishwash and laundry care products.",
+      hours: { mon_fri: "9:00-19:00", sat: "9:00-17:00", sun: "closed" },
+      website: "not-a-url",
+    },
+  });
+  const result = validateDraft(draft);
+
+  assert.equal(result.valid, false);
+  assert.ok(
+    result.missingRequiredFields.every((f) => !(f.primitiveKey === "business_info" && f.fieldKey === "website")),
+    "an invalid-but-present optional field must not appear in missingRequiredFields",
+  );
+  assert.ok(
+    result.issues.some(
+      (issue) => issue.primitiveKey === "business_info" && issue.fieldKey === "website" && issue.severity === "error",
+    ),
+  );
+});
+
 test("selecting a primitive not yet in the registry is reported, not thrown", () => {
   const draft = retailDraft();
   const draftWithOrderMgmt: DraftConfig = {

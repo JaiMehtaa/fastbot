@@ -27,3 +27,38 @@ export function getPrimitive(key: PrimitiveKey): PrimitiveSchema {
 export function listPrimitives(): readonly PrimitiveSchema[] {
   return Object.values(primitiveRegistry).filter((s): s is PrimitiveSchema => Boolean(s));
 }
+
+export interface RegistryConsistencyIssue {
+  message: string;
+}
+
+/**
+ * Checks that no two primitives in the given set (the live registry by
+ * default) declare the same state name. `apps/runtime`'s compile step relies
+ * on state names being globally unique across whatever primitives a tenant
+ * selects — two primitives sharing a name would silently overwrite each
+ * other's state-table entry. This is the static, whole-registry version of
+ * that guarantee; `packages/compiler`'s `assignStateTableEntry` is the
+ * runtime backstop for the same invariant.
+ */
+export function checkRegistryConsistency(
+  schemas: readonly PrimitiveSchema[] = listPrimitives(),
+): RegistryConsistencyIssue[] {
+  const issues: RegistryConsistencyIssue[] = [];
+  const ownerByState = new Map<string, PrimitiveKey>();
+
+  for (const schema of schemas) {
+    for (const state of schema.stateContract) {
+      const owner = ownerByState.get(state);
+      if (owner && owner !== schema.key) {
+        issues.push({
+          message: `State "${state}" is declared by both "${owner}" and "${schema.key}" — state names must be unique across the entire primitive registry.`,
+        });
+      } else {
+        ownerByState.set(state, schema.key);
+      }
+    }
+  }
+
+  return issues;
+}
