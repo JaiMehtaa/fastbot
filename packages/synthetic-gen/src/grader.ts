@@ -35,9 +35,9 @@ export function defaultTextComparator(groundTruth: string, candidate: string): b
 
   let overlap = 0;
   for (const token of a) if (b.has(token)) overlap += 1;
-  const union = new Set([...a, ...b]).size;
+  const unionSize = a.size + b.size - overlap;
 
-  return overlap / union >= 0.3;
+  return overlap / unionSize >= 0.3;
 }
 
 function valuesMatch(field: FieldDefinition, groundTruth: unknown, candidate: unknown, textComparator: TextComparator): boolean {

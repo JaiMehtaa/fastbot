@@ -53,8 +53,20 @@ test("returns low_confidence after exhausting maxAttempts without ever meeting t
     status: "low_confidence",
     lastOutput: "attempt-2",
     lastConfidence: 0.2,
+    lastReason: undefined,
     attempts: 2,
   });
+});
+
+test("low_confidence carries the reason from a separate score() function through as lastReason", async () => {
+  const result = await generateWithConfidence<string>({
+    generate: async () => ({ output: "answer", confidence: 0.99 }),
+    score: async () => ({ confidence: 0.1, reason: "not grounded in the provided FAQ content" }),
+    threshold: 0.7,
+    maxAttempts: 1,
+  });
+
+  assert.equal(result.status === "low_confidence" && result.lastReason, "not grounded in the provided FAQ content");
 });
 
 test("a separate score() function overrides the generator's self-reported confidence", async () => {

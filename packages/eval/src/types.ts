@@ -38,6 +38,7 @@ export interface LowConfidenceResult<T> {
   status: "low_confidence";
   lastOutput: T;
   lastConfidence: number;
+  lastReason?: string;
   attempts: number;
 }
 

@@ -1,6 +1,14 @@
+import { isEmptyValue } from "@whatsapp-bot-platform/compiler";
 import type { DraftConfig } from "@whatsapp-bot-platform/shared-types";
 
 export type PersonaStyle = "clean" | "verbose" | "terse" | "ambiguous" | "contradictory";
+
+function assertNonEmpty(value: string, errorMessage: string): string {
+  if (isEmptyValue(value)) {
+    throw new Error(errorMessage);
+  }
+  return value;
+}
 
 export interface PersonaProfile {
   groundTruth: DraftConfig;
@@ -23,10 +31,10 @@ export async function renderPersona(
   style: PersonaStyle,
   renderFn: RenderPersonaFn,
 ): Promise<PersonaProfile> {
-  const material = await renderFn({ groundTruth, style });
-  if (!material || material.trim().length === 0) {
-    throw new Error("renderPersona: renderFn returned empty material");
-  }
+  const material = assertNonEmpty(
+    await renderFn({ groundTruth, style }),
+    "renderPersona: renderFn returned empty material",
+  );
   return { groundTruth, style, material };
 }
 
@@ -51,9 +59,5 @@ export async function simulatePersonaTurn(
   context: PersonaTurnContext,
   simulateFn: SimulatePersonaTurnFn,
 ): Promise<string> {
-  const answer = await simulateFn(context);
-  if (!answer || answer.trim().length === 0) {
-    throw new Error("simulatePersonaTurn: simulateFn returned an empty answer");
-  }
-  return answer;
+  return assertNonEmpty(await simulateFn(context), "simulatePersonaTurn: simulateFn returned an empty answer");
 }

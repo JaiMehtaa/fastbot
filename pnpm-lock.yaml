@@ -81,6 +81,9 @@ importers:
       '@whatsapp-bot-platform/compiler':
         specifier: workspace:*
         version: link:../compiler
+      '@whatsapp-bot-platform/eval':
+        specifier: workspace:*
+        version: link:../eval
       '@whatsapp-bot-platform/schema':
         specifier: workspace:*
         version: link:../schema

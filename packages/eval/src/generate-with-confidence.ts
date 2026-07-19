@@ -28,8 +28,8 @@ export async function generateWithConfidence<T>(
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const result = await generate({ attempt, previousAttempts });
-    const confidence = score ? (await score(result.output)).confidence : result.confidence;
-    const scored: GenerateAttempt<T> = { ...result, confidence };
+    const { confidence, reason } = score ? await score(result.output) : result;
+    const scored: GenerateAttempt<T> = { output: result.output, confidence, reason };
 
     if (confidence >= threshold) {
       return { status: "accepted", output: scored.output, confidence, attempts: attempt };
@@ -47,6 +47,7 @@ export async function generateWithConfidence<T>(
     status: "low_confidence",
     lastOutput: lastAttempt.output,
     lastConfidence: lastAttempt.confidence,
+    lastReason: lastAttempt.reason,
     attempts: maxAttempts,
   };
 }

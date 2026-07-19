@@ -66,6 +66,29 @@ test("throws a clear error after exhausting attempts for a primitive that never 
   );
 });
 
+test("passes the previous attempt's validation feedback into the next retry", async () => {
+  let faqAttempts = 0;
+  const seenReasons: (string | undefined)[] = [];
+
+  await generateGroundTruthDraft({
+    lobKey: "minimal_support",
+    maxAttemptsPerPrimitive: 3,
+    generateFieldValues: async ({ primitiveKey, previousAttempts }) => {
+      if (primitiveKey === "faq_support") {
+        faqAttempts += 1;
+        seenReasons.push(previousAttempts[previousAttempts.length - 1]?.reason);
+        if (faqAttempts < 2) return { faqs: [] };
+        return validValuesByPrimitive.faq_support!;
+      }
+      return validValuesByPrimitive[primitiveKey] ?? {};
+    },
+  });
+
+  assert.equal(seenReasons.length, 2);
+  assert.equal(seenReasons[0], undefined); // first attempt: no prior feedback yet
+  assert.match(seenReasons[1] ?? "", /missing field/); // second attempt: told why the first failed
+});
+
 test("throws on an unknown lobKey", async () => {
   await assert.rejects(
     () =>

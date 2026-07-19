@@ -8,6 +8,7 @@
   "references": [
     { "path": "../shared-types" },
     { "path": "../schema" },
-    { "path": "../compiler" }
+    { "path": "../compiler" },
+    { "path": "../eval" }
   ]
 }

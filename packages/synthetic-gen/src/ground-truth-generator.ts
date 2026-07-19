@@ -1,11 +1,14 @@
 import { findLobRecipe } from "@whatsapp-bot-platform/schema";
 import { validateDraft } from "@whatsapp-bot-platform/compiler";
+import { generateWithConfidence } from "@whatsapp-bot-platform/eval";
+import type { GenerateAttempt } from "@whatsapp-bot-platform/eval";
 import type { DraftConfig, PrimitiveFieldValues, PrimitiveKey, ValidationResult } from "@whatsapp-bot-platform/shared-types";
 
 export type GenerateFieldValuesFn = (context: {
   lobKey: string;
   primitiveKey: PrimitiveKey;
   attempt: number;
+  previousAttempts: readonly GenerateAttempt<PrimitiveFieldValues>[];
 }) => Promise<PrimitiveFieldValues>;
 
 export interface GenerateGroundTruthOptions {
@@ -14,15 +17,22 @@ export interface GenerateGroundTruthOptions {
   maxAttemptsPerPrimitive?: number;
 }
 
+function summarizeValidationFailure(validation: ValidationResult): string {
+  const errorCount = validation.issues.filter((issue) => issue.severity === "error").length;
+  return `${validation.missingRequiredFields.length} missing field(s), ${errorCount} error(s)`;
+}
+
 /**
  * Generates a ground-truth DraftConfig for a chosen LOB recipe — one that is
  * guaranteed to actually pass packages/compiler's validateDraft, not just
- * assumed to. This is the TS equivalent of the instructor+retry pattern:
- * each primitive's generated fields are probed against the real validator
- * and regenerated on failure (up to maxAttemptsPerPrimitive), then the full
- * assembled draft gets one final validation pass to catch cross-primitive
- * constraints (e.g. booking needs business_info.hours) that a single
- * primitive's fields can't surface on their own.
+ * assumed to. Each primitive's fields are generated through the same shared
+ * generateWithConfidence() every other LLM call site in the system uses (see
+ * packages/eval): "confidence" here is just pass/fail from validateDraft,
+ * with the validation summary threaded back as feedback for the next retry.
+ * Primitives don't depend on each other, so they generate concurrently; a
+ * final validation pass on the assembled draft catches cross-primitive
+ * constraints (e.g. booking needs business_info.hours) no single primitive's
+ * fields can surface on their own.
  */
 export async function generateGroundTruthDraft(options: GenerateGroundTruthOptions): Promise<DraftConfig> {
   const { lobKey, generateFieldValues, maxAttemptsPerPrimitive = 3 } = options;
@@ -31,53 +41,55 @@ export async function generateGroundTruthDraft(options: GenerateGroundTruthOptio
     throw new Error(`Unknown lob_recipe: "${lobKey}"`);
   }
 
-  const fieldValues: DraftConfig["fieldValues"] = {};
+  const generated = await Promise.all(
+    recipe.defaultPrimitives.map(async (primitiveKey): Promise<[PrimitiveKey, PrimitiveFieldValues]> => {
+      const result = await generateWithConfidence<PrimitiveFieldValues>({
+        generate: async ({ attempt, previousAttempts }) => ({
+          output: await generateFieldValues({ lobKey, primitiveKey, attempt, previousAttempts }),
+          confidence: 0, // authoritative confidence comes from score() below, not self-reported
+        }),
+        score: async (values) => {
+          const probe: DraftConfig = {
+            draftSessionId: "synthetic-probe",
+            version: 1,
+            lobKey,
+            selectedPrimitives: [primitiveKey],
+            fieldValues: { [primitiveKey]: values },
+          };
+          const validation = validateDraft(probe);
+          return {
+            confidence: validation.valid ? 1 : 0,
+            reason: validation.valid ? undefined : summarizeValidationFailure(validation),
+          };
+        },
+        threshold: 1,
+        maxAttempts: maxAttemptsPerPrimitive,
+      });
 
-  for (const primitiveKey of recipe.defaultPrimitives) {
-    let accepted = false;
-    let lastValidation: ValidationResult | undefined;
-
-    for (let attempt = 1; attempt <= maxAttemptsPerPrimitive && !accepted; attempt++) {
-      const values = await generateFieldValues({ lobKey, primitiveKey, attempt });
-      const probe: DraftConfig = {
-        draftSessionId: "synthetic-probe",
-        version: 1,
-        lobKey,
-        selectedPrimitives: [primitiveKey],
-        fieldValues: { [primitiveKey]: values },
-      };
-      lastValidation = validateDraft(probe);
-      if (lastValidation.valid) {
-        fieldValues[primitiveKey] = values;
-        accepted = true;
+      if (result.status === "low_confidence") {
+        throw new Error(
+          `Failed to generate valid field values for primitive "${primitiveKey}" ` +
+            `after ${maxAttemptsPerPrimitive} attempts: ${result.lastReason ?? "validation failed"}.`,
+        );
       }
-    }
 
-    if (!accepted) {
-      const errorCount = lastValidation?.issues.filter((issue) => issue.severity === "error").length ?? 0;
-      throw new Error(
-        `Failed to generate valid field values for primitive "${primitiveKey}" ` +
-          `after ${maxAttemptsPerPrimitive} attempts: ` +
-          `${lastValidation?.missingRequiredFields.length ?? 0} missing field(s), ${errorCount} error(s).`,
-      );
-    }
-  }
+      return [primitiveKey, result.output];
+    }),
+  );
 
   const draft: DraftConfig = {
     draftSessionId: `synthetic-${lobKey}-${Date.now()}`,
     version: 1,
     lobKey,
     selectedPrimitives: recipe.defaultPrimitives,
-    fieldValues,
+    fieldValues: Object.fromEntries(generated),
   };
 
   const finalValidation = validateDraft(draft);
   if (!finalValidation.valid) {
-    const errorCount = finalValidation.issues.filter((issue) => issue.severity === "error").length;
     throw new Error(
       `Generated ground-truth draft for lobKey "${lobKey}" failed full validation ` +
-        `(cross-primitive constraint likely): ${finalValidation.missingRequiredFields.length} missing field(s), ` +
-        `${errorCount} error(s).`,
+        `(cross-primitive constraint likely): ${summarizeValidationFailure(finalValidation)}.`,
     );
   }
 

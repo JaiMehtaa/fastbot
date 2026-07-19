@@ -12,7 +12,8 @@
   "dependencies": {
     "@whatsapp-bot-platform/shared-types": "workspace:*",
     "@whatsapp-bot-platform/schema": "workspace:*",
-    "@whatsapp-bot-platform/compiler": "workspace:*"
+    "@whatsapp-bot-platform/compiler": "workspace:*",
+    "@whatsapp-bot-platform/eval": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^7.0.2",
