@@ -1,0 +1,10 @@
+# packages/synthetic-gen — Synthetic Business Generator
+
+Extends the same synthetic-data-generation methodology used elsewhere (structured LLM output + retry-on-invalid) to produce test fixtures for `apps/interview-api` and `apps/runtime`, without needing a human tester per iteration.
+
+- **`ground-truth-generator.ts`** — generates a *valid* `DraftConfig` for a chosen LOB recipe. Each primitive's generated fields are probed against `packages/compiler`'s real `validateDraft` and regenerated on failure (up to `maxAttemptsPerPrimitive`), then the full assembled draft gets one final validation pass to catch cross-primitive constraints a single primitive can't surface alone.
+- **`persona.ts`** (`renderPersona` / `simulatePersonaTurn`) — renders a ground-truth draft into deliberately messy natural-language material, then simulates a business owner answering turn-by-turn *from that material only*, never the structured ground truth directly — this is what forces whatever interview agent is under test to do real extraction work instead of parroting an answer key.
+- **`grader.ts`** — pure, deterministic, no LLM call: compares a candidate `DraftConfig` (e.g. what an interview agent produced) against ground truth, field by field. Structured fields use exact comparison; `text`-type fields use a token-overlap heuristic (swappable via an injected `TextComparator` if an LLM-judge comparator is wanted later). Runs in CI on every commit, unlike the generation side above.
+- **`scenarios.ts`** — curated, hand-authored adversarial cases (ambiguous LOB, contradicting statements, an unbuyable catalogue item) that specifically stress-test `packages/eval`'s confidence-gating logic, not just the happy path. No LLM involved in authoring these — `scenarios.test.ts` guards that every fixture's ground truth still validates as primitive schemas evolve.
+
+Both `ground-truth-generator.ts` and `persona.ts` take their LLM-calling functions as parameters (same dependency-injection pattern as `packages/eval`) — real OpenRouter-backed implementations of those functions live in `apps/interview-api`'s test suite once it exists, not here.

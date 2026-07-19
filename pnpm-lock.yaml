@@ -45,6 +45,15 @@ importers:
 
   packages/db: {}
 
+  packages/eval:
+    devDependencies:
+      '@types/node':
+        specifier: ^26.1.1
+        version: 26.1.1
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
   packages/schema:
     dependencies:
       '@whatsapp-bot-platform/shared-types':
@@ -59,6 +68,25 @@ importers:
         version: 7.0.2
 
   packages/shared-types:
+    devDependencies:
+      '@types/node':
+        specifier: ^26.1.1
+        version: 26.1.1
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
+  packages/synthetic-gen:
+    dependencies:
+      '@whatsapp-bot-platform/compiler':
+        specifier: workspace:*
+        version: link:../compiler
+      '@whatsapp-bot-platform/schema':
+        specifier: workspace:*
+        version: link:../schema
+      '@whatsapp-bot-platform/shared-types':
+        specifier: workspace:*
+        version: link:../shared-types
     devDependencies:
       '@types/node':
         specifier: ^26.1.1

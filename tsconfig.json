@@ -3,6 +3,8 @@
   "references": [
     { "path": "packages/shared-types" },
     { "path": "packages/schema" },
-    { "path": "packages/compiler" }
+    { "path": "packages/compiler" },
+    { "path": "packages/eval" },
+    { "path": "packages/synthetic-gen" }
   ]
 }

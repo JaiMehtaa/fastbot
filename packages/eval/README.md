@@ -1,0 +1,7 @@
+# packages/eval — Confidence & Eval Layer (Foundational)
+
+One shared primitive, `generateWithConfidence()`, used by every LLM call site in the system (interview field extraction, `faq_support` fallback, LOB classification) — mirrors how `packages/compiler` is the one shared deterministic-validation layer, and is deliberately kept separate from it: `packages/compiler` stays LLM-free by design, this is where LLM-calling orchestration lives.
+
+Given a `generate()` function and a threshold, it calls `generate()`, checks confidence (either `generate()`'s own self-reported confidence, or a separate injected `score()` judge call), and on low confidence retries with feedback (previous attempts are passed back in) up to `maxAttempts`. On exhaustion it returns a `low_confidence` result rather than ever silently returning a bad output as if it were good — the caller decides what "low confidence" means for that touchpoint (don't commit the field, route to `human_escalation`, ask a clarifying question).
+
+`generate`/`score` are injected, not hardcoded to a provider — that's what makes the orchestrator itself fully unit-testable without a live LLM call. `openrouter-client.ts` is the thin real-provider adapter (OpenRouter, per `docs/architecture.md`), used to build real `generate`/`score` functions once `OPENROUTER_API_KEY` is set — it fails loudly at construction time if the key is missing, not on first use.
