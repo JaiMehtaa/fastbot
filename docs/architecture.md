@@ -4,7 +4,7 @@
 
 Small business WhatsApp bot builders today (Wati, AiSensy, Interakt, Gallabox) are all manual drag-and-drop tools — every menu, button, and flow has to be hand-wired by the business owner. The goal here is to replace that with a conversational, prompt-driven build: a business describes itself in a chat, an AI interviewer cross-questions until it has everything needed, and a working WhatsApp bot comes out the other end — no drag-and-drop, minimal manual configuration.
 
-This was scoped against a real reference artifact: Pittie Group's deployed n8n WhatsApp bot ("Consumer BOT DEPLOYED," ~111 nodes). Its state-machine pattern (Supabase-backed `users`/`chat_history`, a state-router switch, a hardcoded per-brand "Brand Logic Engine," 24h session expiry, free-text debounce, LangChain support escalation) is a proven design — but it's hardcoded per business. The core insight driving this whole plan: **that hardcoded logic must become a generic interpreter driven by structured config data**, so one runtime engine can serve any business instead of one engine per client.
+This was scoped against a real reference artifact: Pittie Group's deployed n8n WhatsApp bot ("Consumer BOT DEPLOYED," ~111 nodes), which was reverse-engineered earlier in this conversation. Its state-machine pattern (Supabase-backed `users`/`chat_history`, a state-router switch, a hardcoded per-brand "Brand Logic Engine," 24h session expiry, free-text debounce, LangChain support escalation) is a proven design — but it's hardcoded per business. The core insight driving this whole plan: **that hardcoded logic must become a generic interpreter driven by structured config data**, so one runtime engine can serve any business instead of one engine per client.
 
 The MVP is scoped narrow on purpose: one LOB, one BSP (outsourced WhatsApp channel access, not direct Meta Tech Provider status), Node/TypeScript end-to-end, proving prompt → structured config → real working WhatsApp bot before expanding to multi-channel or embeddable SDKs (those are explicitly future scope, not part of this build).
 
@@ -139,6 +139,29 @@ Three gates use this: incremental (during interview, drives missing-field prompt
 
 ---
 
+## Knowledge Strategy & Confidence/Eval Layer (Foundational)
+
+**LLM provider: OpenRouter.** Consistent with the Pittie reference workflow and the same "outsource what isn't our core IP" posture as the BSP decision — gives model flexibility (a strong model for generation, a cheap/fast model for judging) without integrating a second vendor.
+
+**RAG decision: no RAG for MVP.** Every LLM touchpoint in this system operates on data that is structurally small enough to fit directly in a prompt:
+- Interview field extraction: only the selected primitives' schema (~15-30 fields for a typical 3-6 primitive LOB recipe)
+- `faq_support` fallback: one tenant's `faqs` array (even 50 FAQs ≈ 7K tokens, trivial against a 128K+ context window)
+- LOB classification: all `lob_recipes.classification_examples` (even 200 recipes ≈ 9K tokens)
+- Escalation/support fallback: last ~30 messages (Pittie's own proven pattern) — a bounded recent window, not a corpus
+
+RAG's entire value is retrieval over a corpus too large to fit in context; nothing in the current primitive registry produces that corpus, so building it now would be infrastructure for a problem we don't have. Revisit only if a future primitive (a `knowledge_base`/document-upload primitive) introduces genuinely large unstructured knowledge — `pgvector` via Supabase (already our database, no new vendor) is the natural fit then, additive rather than a rearchitecture of `faq_support`.
+
+**Confidence & eval layer — the foundational quality-control mechanism, not vendor-specific.** A new shared package, `packages/eval`, provides one reusable `generateWithConfidence()` primitive used by every LLM call site in the system, mirroring how `packages/compiler` is the one shared deterministic-validation layer (and deliberately kept separate from it — `packages/compiler` stays LLM-free and pure by design; `packages/eval` is where LLM-calling orchestration lives). Given a `generate()` function, a `score()` function (self-reported confidence from the same call, or a separate judge call — pluggable per call site), a threshold, and a max-attempt count, it calls `generate()`, scores the output, and on low confidence either retries with feedback (up to the attempt limit) or returns a `lowConfidence` result. The caller decides what "low confidence" means for that touchpoint — a low-confidence output is never silently shown to an end user.
+
+Per call site:
+- **`faq_support` fallback** (highest stakes — reaches real customers): a separate judge call (a fast/cheap OpenRouter model scoring "is this answer actually grounded in the FAQ content provided, or does it go beyond it") rather than self-reported confidence, since self-rating is poorly calibrated and the cost of a second call is worth it here. On exhausting retries, route straight into `human_escalation` instead of showing a possibly-wrong answer — no new state needed, this is just a routing decision onto a primitive we already built.
+- **Interview field extraction**: self-reported confidence per extracted field (cheap, keeps conversational latency low). A low-confidence field is simply not committed — it stays in `missingRequiredFields` and the next turn asks a clarifying follow-up, reusing the existing missing-field-driven interview loop rather than an in-turn regeneration.
+- **LOB classification**: self-reported confidence; below threshold triggers the "ask one clarifying question" behavior already specified above, then falls back to `minimal_support` if still ambiguous. This formalizes what was a bespoke ambiguity rule into the same shared mechanism as the other two.
+
+This keeps the same discipline already established for the rest of the system: one generic mechanism, not bespoke logic duplicated per touchpoint.
+
+---
+
 ## Runtime Engine Design (Stage 3)
 
 Single generic interpreter, WhatsApp adapter for MVP, designed so a future channel adapter is plausible without a redesign:
@@ -149,7 +172,7 @@ Single generic interpreter, WhatsApp adapter for MVP, designed so a future chann
 4. 24h expiry check against `last_interaction` → reset to root state if stale (generalization of Pittie's reset logic).
 5. Free-text debounce (replacing n8n's Wait node): stamp `pending_msg_id`, durable-execution step sleeps 8s, re-checks it's still the latest before proceeding.
 6. Generic interpreter: `compiled_config.state_table[current_state]` → primitive_key → dispatch to a generic per-primitive-type handler (`CatalogueHandler`, `BookingHandler`, `FaqHandler`, `EscalationHandler`, …), parameterized entirely by that tenant's compiled block. No per-tenant bespoke code, ever — this is the direct generalization of Pittie's Brand Logic Engine.
-7. Handler returns `{next_state, outbound_payload}`, or delegates to an LLM for `faq_support`/`human_escalation`.
+7. Handler returns `{next_state, outbound_payload}`, or delegates to an LLM via `packages/eval`'s `generateWithConfidence()` for `faq_support`/`human_escalation` (see "Knowledge Strategy & Confidence/Eval Layer" above) — a low-confidence result routes to `human_escalation` rather than surfacing an uncertain answer.
 8. Send → log (`chat_history`) → set-state (`conversation_state`) triplet, preserved exactly as Pittie does it.
 9. Delivery-status webhooks update `chat_history.status` by `message_id`.
 10. When `human_escalation` fires (ticket created) or a delivery fails, write a `dashboard_notifications` row — this is the direct link between the runtime and Surface 2's escalations feed.
@@ -212,7 +235,7 @@ This pillar introduces no new core data model — it reads from (and gets role-s
 ## Build Sequence / Milestones
 
 - **M0 — Foundations**: `primitive_registry` schemas for `business_info`/`catalogue`/`faq_support`/`human_escalation`; compiler/validator as pure TS + unit tests; full Postgres schema (including `accounts`/`admin_accounts`/`dashboard_notifications`, not just draft/tenant tables); a lightweight internal primitive-registry viewer (read-only page) so new primitives are visible to the team the moment they're added, not bolted on later. *Exit: hand-crafted draft JSON compiles correctly, flags missing fields, and shows up in the internal viewer.*
-- **M1 — Interview agent**: function-calling extraction wired to incremental validation, tested against synthetic business personas (transcripts, no UI). *Exit: synthetic scripts with varied phrasing converge to valid configs within a bounded turn count.*
+- **M1 — Interview agent**: `packages/eval`'s `generateWithConfidence()` (see "Knowledge Strategy & Confidence/Eval Layer"), then function-calling extraction wired to incremental validation and self-reported-confidence field gating, tested against synthetic business personas (transcripts, no UI). *Exit: synthetic scripts with varied phrasing converge to valid configs within a bounded turn count, and a deliberately ambiguous synthetic answer correctly triggers a clarifying follow-up instead of a wrong committed value.*
 - **M2 — Runtime + sandbox loop**: BSP adapter, generic interpreter + M0 primitive handlers, `conversation_state`/`chat_history`, sandbox token/binding flow, durable execution for debounce/expiry/cleanup. *Exit: a prospect completes the M1 interview, taps the wa.me link, has a real conversation on the shared sandbox number rendering their config correctly.*
 - **M3 — Accounts, dashboard shell, connect-your-number, promote**: auth, `account_tenants`, plan/billing display, BSP-driven number connection, draft→tenant promotion. *Exit: a signed-up user can connect a real number and see their bot flip from draft to live.*
 - **M4 — Customer dashboard operations surface (Pillar 2)**: bot editor (interview agent scoped to a live tenant + diff/re-publish), re-test via sandbox mechanism, escalations/discrepancies feed wired to `human_escalation` + delivery failures, conversation history viewer. *Exit: a live business can edit their bot, see the diff, re-test, re-publish, and see a real escalation appear in their dashboard.*
@@ -268,6 +291,9 @@ whatsapp-bot-platform/
 ├── packages/
 │   ├── schema/            # primitive_registry JSON Schemas + lob_recipes — source of truth
 │   ├── compiler/          # Stage 2 — validate.ts, compile.ts (pure, LLM-free)
+│   ├── eval/               # generateWithConfidence() — the shared generate->score->retry/escalate
+│   │                       #   layer used by every LLM call site (interview extraction, faq_support
+│   │                       #   fallback, LOB classification); deliberately separate from packages/compiler
 │   ├── db/                 # Supabase/Postgres client, generated types, migrations
 │   └── shared-types/       # cross-app TS types: DraftConfig, CompiledConfig, InboundMessage, etc.
 ├── infra/
@@ -280,7 +306,7 @@ whatsapp-bot-platform/
 └── .gitignore
 ```
 
-**Why this shape**: `packages/schema` and `packages/compiler` get imported by three different apps — `interview-api` validates/compiles as the interview progresses, `runtime` compiles on publish/re-publish, `admin` reads the registry for its primitive/LOB view. Keeping them as standalone packages instead of duplicating logic per-app is what actually *enforces* the "one generic interpreter, no per-tenant bespoke code" rule at the code level, not just by convention.
+**Why this shape**: `packages/schema` and `packages/compiler` get imported by three different apps — `interview-api` validates/compiles as the interview progresses, `runtime` compiles on publish/re-publish, `admin` reads the registry for its primitive/LOB view. Keeping them as standalone packages instead of duplicating logic per-app is what actually *enforces* the "one generic interpreter, no per-tenant bespoke code" rule at the code level, not just by convention. `packages/eval` follows the same discipline one layer up: both `interview-api` and `runtime` call LLMs, and both go through the same `generateWithConfidence()` rather than each hand-rolling their own retry/threshold logic.
 
 **Initial git setup**: `git init`, `.gitignore` (node_modules, .env, build artifacts), scaffold the folder tree above with placeholder `package.json`/README per package stating its role, copy this plan into `docs/architecture.md`, one initial commit. Pushing to a remote is deferred until the destination is confirmed (new GitHub repo — personal or an org, visibility, repo name) — that's a shared-state action worth confirming explicitly rather than assuming.
 
@@ -296,3 +322,4 @@ whatsapp-bot-platform/
 6. `wa_id` binding collisions in the sandbox — one phone testing multiple drafts needs an explicit reset, not silent overwrite.
 7. Dashboard/live-edit re-publish flow (M4) doubles the paths that hit the compiler/sandbox mechanism (pre-signup drafts and post-launch tenant edits) — worth explicit test coverage for both, not just the pre-signup path, since it's easy to build and test only the funnel and undertest the ongoing-management surface.
 8. The admin panel (Pillar 3) is now scoped as a real second application, not a page — it's genuine, ongoing engineering investment running in parallel with pillars 1/2/4. Recommend timeboxing M5 to its stated MVP scope (registry visibility, cross-tenant view, health monitoring, basic intervention tools) and treating deeper tooling as demand-driven fast-follows, so it doesn't quietly balloon into its own multi-month build alongside the customer-facing product.
+9. `generateWithConfidence()`'s thresholds and max-attempt counts are not tuned in this plan — they're implementation-time judgment calls that will need real conversation data (or synthetic transcripts) to calibrate. A threshold set too strict burns extra judge-call cost and latency on borderline-fine answers; set too loose, it defeats the point of the eval layer. Treat initial values as provisional and plan to revisit them once M1/M2 produce real transcripts.
