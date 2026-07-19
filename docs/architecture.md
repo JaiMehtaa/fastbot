@@ -269,6 +269,15 @@ Direct extension of the synthetic-seed-generation methodology already used on Sp
 
 ---
 
+## App Framework Choices
+
+- **Next.js (App Router)** for the three UI-facing pillars: `apps/web`, `apps/dashboard`, `apps/admin`. All three need pages, API routes, and Supabase Auth session handling — Next.js + Supabase is a well-trodden pairing with official SDK support, avoiding a bespoke frontend/backend split for apps that are fundamentally page-driven.
+- **Fastify** for the two API-only services: `apps/interview-api`, `apps/runtime`. Neither serves any UI — Fastify is a lightweight, TS-friendly HTTP framework suited to webhook ingestion (runtime) and a chat-turn API (interview-api), without carrying Next.js's page-routing/rendering machinery that these two would never use.
+
+This keeps the framework surface to exactly two choices across five apps, not five bespoke stacks — same "reduce operational overhead" reasoning already used for choosing Inngest over Temporal.
+
+---
+
 ## Open Decision (not locked by this plan)
 
 **First LOB.** Retail/D2C is recommended for lowest technical risk (every primitive it needs is already proven), but this should be confirmed against whichever business is the actual first pilot candidate before M0 schema work locks in — if that pilot is a services/booking business, `booking` should be pulled into M0 instead, accepting the added complexity earlier.
@@ -294,6 +303,8 @@ whatsapp-bot-platform/
 │   ├── eval/               # generateWithConfidence() — the shared generate->score->retry/escalate
 │   │                       #   layer used by every LLM call site (interview extraction, faq_support
 │   │                       #   fallback, LOB classification); deliberately separate from packages/compiler
+│   ├── synthetic-gen/      # ground-truth generator + persona simulator + grader + curated scenarios,
+│   │                       #   for testing the interview agent without a human tester per iteration
 │   ├── db/                 # Supabase/Postgres client, generated types, migrations
 │   └── shared-types/       # cross-app TS types: DraftConfig, CompiledConfig, InboundMessage, etc.
 ├── infra/

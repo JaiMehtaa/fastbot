@@ -9,4 +9,6 @@ Authenticated surface where a signed-up business lives day to day:
 - Conversation history viewer — reads `chat_history` scoped to the tenant
 - Connect-your-WhatsApp-number action (BSP onboarding), which promotes a draft to a live `tenant`
 
+**Status**: Next.js (App Router) skeleton — boots and builds, placeholder page + `/api/health`. None of the above is built yet — no auth, no real pages.
+
 See `/docs/architecture.md` for full system design.

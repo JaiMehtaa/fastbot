@@ -126,9 +126,30 @@ CI strategy mirrors the plan's mock-BSP-adapter approach for M2: curated scenari
 
 ---
 
+## 10. Repo pushed to GitHub, M1 foundations built and simplified
+
+User provided a destination: `github.com/JaiMehtaa/fastbot` (empty repo, SSH remote). Pushed all local history there, including the pending docs commit that was sitting uncommitted. Then built `packages/eval` (`generateWithConfidence()` — real, DI-tested, no live LLM call needed) and `packages/synthetic-gen` (ground-truth generator, persona renderer/simulator, grader, 3 curated scenarios — real, DI-tested) for real, matching M0's quality bar (52 tests).
+
+Ran a 4-agent `/simplify` pass (reuse, simplification, efficiency, altitude) against that commit. One substantive finding: `ground-truth-generator.ts` had hand-rolled its own generate→validate→retry loop instead of using `packages/eval`'s `generateWithConfidence()` — `packages/synthetic-gen` didn't even depend on `packages/eval`, despite that package's whole purpose being "used by every LLM call site in the system." Fixed by routing through it for real (`validateDraft`'s pass/fail became the `score()` function, failed-attempt feedback now threads back via a new `LowConfidenceResult.lastReason` field), which also parallelized primitive generation (`Promise.all`) and fixed a wasted `Set` allocation in the grader's text comparator. Two smaller proposed fixes (a non-null-assertion micro-simplification, and forcing `persona.ts` through the eval layer with an invented confidence signal) were evaluated afterward and explicitly rejected as not worth it — the first trades away a self-documenting invariant for four lines, the second would fake a confidence number with nothing real to calibrate it against.
+
+---
+
+## 11. "Build the whole thing" — packages/db, apps/runtime, and app skeletons
+
+User asked to move forward broadly ("let you build the whole thing"), explicitly deferring only the interview agent's actual conversational logic ("the chatbot") for later joint work. Built, in order:
+
+- **`packages/db`** — SQL migrations for every table in the Data Model section (deliberately excluding `primitive_registry`/`lob_recipes`, which stay code-authored), RLS enabled with no policies yet (safe-by-default), a `createDbClient()` matching the same fail-loud-at-construction pattern as the OpenRouter client. No Supabase project exists yet, so this is wired, not live.
+- **App framework decision**: Next.js for the three UI pillars (`web`/`dashboard`/`admin` — pages + API routes + Supabase Auth), Fastify for the two API-only services (`interview-api`/`runtime`) — documented in `docs/architecture.md` as its own section.
+- **`apps/runtime`** — built for real, not just scaffolded: webhook payload parsing (matching Meta's actual wire shape, cross-checked against the Pittie reference), context resolution (tenant lookup / sandbox join), a generic interpreter with handlers for all four MVP primitives, and the full send→log→set-state pipeline with escalation side effects. A deliberate generalization emerged here: a handler can return a bare state-name handoff (no payload) to mean "hand this off to whichever primitive owns that state," which the interpreter chases generically — this is exactly how `faq_support`'s low-confidence fallback reaches `human_escalation`'s prompt in the same turn, with no primitive-specific special-casing. Tested against a mock BSP adapter and an in-memory repository (35 tests) — no live BSP account or Supabase project needed to prove the logic is correct.
+- **Building `apps/runtime` surfaced a real gap**: `faq_support`'s fallback assumes `human_escalation` is always selected alongside it, but nothing enforced that. Added a third cross-primitive check to `validateDraft`, matching the existing `booking`-needs-`hours` pattern. This in turn broke `packages/synthetic-gen`'s per-primitive probing technique (probing one primitive in isolation made the new presence-check fire against an artificially narrowed `selectedPrimitives`) — fixed by probing against the full recipe's primitive list while attributing validation results back to only the primitive actually being scored.
+- **App skeletons**: `apps/web`, `apps/dashboard`, `apps/admin` (Next.js App Router — verified building for real, not just written) and `apps/interview-api` (Fastify, health check only) — intentionally thin, no invented UI/UX or prompt content, since that's the collaborative work being deferred.
+
+---
+
 ## Where things stand right now
 
-- **Repo**: `/Users/jaimehta/whatsapp-bot-platform`, 3 commits, not yet pushed to any remote (destination still undecided — personal GitHub vs. org, visibility, repo name)
-- **M0**: done, implemented, tested (21 tests), committed
-- **M1**: in progress — `packages/eval` and `packages/synthetic-gen` designed but not yet built; the interview agent itself not started
-- **Open decisions not yet locked**: first LOB to build fully (retail/D2C recommended, unconfirmed against a real pilot business), `generateWithConfidence()`'s actual threshold/max-attempt values (provisional, need real transcripts to calibrate)
+- **Repo**: `github.com/JaiMehtaa/fastbot`, pushed, up to date.
+- **M0**: done. **M1 foundations**: done (`packages/eval`, `packages/synthetic-gen`). **M2 core logic**: done ahead of schedule (`apps/runtime`'s interpreter/handlers/pipeline, tested against mocks). App skeletons for all five `apps/*` exist and build.
+- **93 tests passing workspace-wide.**
+- **Deliberately not started**: the interview agent's actual conversation logic (`apps/interview-api`), a real Supabase-backed `RuntimeRepository`, a real BSP-backed adapter, durable-execution debounce wiring (`infra/inngest`).
+- **Open decisions not yet locked**: first LOB to build fully (retail/D2C recommended, unconfirmed against a real pilot business), `generateWithConfidence()`'s actual threshold/max-attempt values (provisional, need real transcripts to calibrate), which BSP to actually sign up with (360dialog recommended, unverified).

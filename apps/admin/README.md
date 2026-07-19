@@ -10,4 +10,6 @@ Internal-only control plane, separately authenticated from customer accounts (`a
 
 Introduces no new core data model beyond `admin_accounts`; reads/writes the same tables as the rest of the system.
 
+**Status**: Next.js (App Router) skeleton — boots and builds, placeholder page + `/api/health`. None of the above is built yet.
+
 See `/docs/architecture.md` for full system design.

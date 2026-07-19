@@ -115,6 +115,31 @@ test("selecting booking without business_info.hours fails the cross-primitive ch
   );
 });
 
+test("selecting faq_support without human_escalation fails the cross-primitive check", () => {
+  const draft: DraftConfig = {
+    draftSessionId: "draft-3",
+    version: 1,
+    lobKey: "retail_d2c",
+    selectedPrimitives: ["business_info", "faq_support"],
+    fieldValues: {
+      business_info: {
+        business_name: "Zap Home Care",
+        description: "We make dishwash and laundry care products.",
+        hours: { mon_fri: "9:00-19:00" },
+      },
+      faq_support: {
+        faqs: [{ question: "Do you ship pan-India?", answer: "Yes, across India." }],
+      },
+    },
+  };
+  const result = validateDraft(draft);
+
+  assert.equal(result.valid, false);
+  assert.ok(
+    result.issues.some((issue) => issue.primitiveKey === "faq_support" && /human_escalation/.test(issue.message)),
+  );
+});
+
 test("an invalid optional field surfaces as an issue, not a missing-required-field", () => {
   const draft = retailDraft({
     business_info: {

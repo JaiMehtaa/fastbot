@@ -12,6 +12,8 @@ export interface ConversationState extends ConversationContext {
   pendingMsgId?: string;
 }
 
+export type ChatHistoryStatus = "received" | "sent" | "delivered" | "read" | "failed";
+
 export interface InboundMessage {
   waId: string;
   messageId: string;

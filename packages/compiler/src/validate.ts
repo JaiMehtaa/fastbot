@@ -65,6 +65,20 @@ export function validateDraft(draftConfig: DraftConfig): ValidationResult {
     }
   }
 
+  // faq_support's LLM fallback routes low-confidence answers to human_escalation
+  // (see docs/architecture.md "Knowledge Strategy & Confidence/Eval Layer") — without
+  // it, apps/runtime would have nowhere valid to transition on a fallback miss.
+  if (
+    draftConfig.selectedPrimitives.includes("faq_support") &&
+    !draftConfig.selectedPrimitives.includes("human_escalation")
+  ) {
+    issues.push({
+      primitiveKey: "faq_support",
+      message: "faq_support requires human_escalation to also be selected (its LLM fallback routes there on low confidence)",
+      severity: "error",
+    });
+  }
+
   const valid = missingRequiredFields.length === 0 && issues.every((issue) => issue.severity !== "error");
 
   return { valid, missingRequiredFields, issues };

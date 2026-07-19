@@ -1,5 +1,24 @@
 {
   "name": "@whatsapp-bot-platform/interview-api",
   "private": true,
-  "version": "0.0.0"
+  "version": "0.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b",
+    "test": "tsc -b && node --test dist/*.test.js"
+  },
+  "dependencies": {
+    "@whatsapp-bot-platform/shared-types": "workspace:*",
+    "@whatsapp-bot-platform/schema": "workspace:*",
+    "@whatsapp-bot-platform/compiler": "workspace:*",
+    "@whatsapp-bot-platform/eval": "workspace:*",
+    "@whatsapp-bot-platform/db": "workspace:*",
+    "fastify": "^5.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "@types/node": "^26.1.1"
+  }
 }
