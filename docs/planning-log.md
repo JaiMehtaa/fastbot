@@ -146,10 +146,23 @@ User asked to move forward broadly ("let you build the whole thing"), explicitly
 
 ---
 
+## 12. Interview agent turn-handling mechanics (without the chatbot's actual "voice")
+
+Asked what was needed to keep going; answered that the mechanics don't need any credential (same DI pattern as everything else), but the eventual OpenRouter key and, more importantly, the user's own input on the interview's actual conversational tone/wording were both still needed for this to become a real, usable chatbot. User said to go ahead on the mechanics.
+
+Built `apps/interview-api`'s real turn-handling state machine:
+- `lob-classifier.ts` — one classification attempt per turn against `packages/schema`'s real `lob_recipes`, routed through `generateWithConfidence()` with `maxAttempts: 1`. Deliberate design point: the spec's "ask one clarifying question, then fall back" retry spans multiple *conversational* turns (wait for the user's next message), which doesn't fit `generateWithConfidence`'s same-turn regeneration model — that multi-turn behavior lives in session state instead, not in the eval layer's loop.
+- `field-extractor.ts` — extracts zero or more fields per turn, each with independent self-reported confidence; low-confidence fields simply aren't committed. Deliberately does *not* route through `generateWithConfidence` (no single output to gate when one message can answer several fields at once) — documented as the same kind of scope boundary as `persona.ts`'s.
+- `interview-session.ts` — `processTurn()`, re-running `validateDraft` from stored `field_values` every turn (not conversation history) for correct resumability; termination is a deterministic keyword match on an explicit confirmation, never an LLM guess.
+
+16 tests, including a full classify→extract→summarize→confirm happy path, passed on the first run. `buildSummary()`/clarifying-question text are explicitly flagged as functional placeholders, not the real "chatbot voice" — that and the real OpenRouter-backed classify/extract implementations remain the deferred, collaborative piece.
+
+---
+
 ## Where things stand right now
 
 - **Repo**: `github.com/JaiMehtaa/fastbot`, pushed, up to date.
-- **M0**: done. **M1 foundations**: done (`packages/eval`, `packages/synthetic-gen`). **M2 core logic**: done ahead of schedule (`apps/runtime`'s interpreter/handlers/pipeline, tested against mocks). App skeletons for all five `apps/*` exist and build.
-- **93 tests passing workspace-wide.**
-- **Deliberately not started**: the interview agent's actual conversation logic (`apps/interview-api`), a real Supabase-backed `RuntimeRepository`, a real BSP-backed adapter, durable-execution debounce wiring (`infra/inngest`).
+- **M0**: done. **M1 foundations**: done (`packages/eval`, `packages/synthetic-gen`). **M1 core**: done — `apps/interview-api`'s turn-handling mechanics, tested end-to-end against injected fakes. **M2 core logic**: done ahead of schedule (`apps/runtime`'s interpreter/handlers/pipeline, tested against mocks). App skeletons for `web`/`dashboard`/`admin` exist and build.
+- **108 tests passing workspace-wide.**
+- **Deliberately not started**: real OpenRouter-backed classify/extract implementations, the actual conversational tone/wording ("the chatbot's voice"), the HTTP route wiring `apps/interview-api`'s server to `processTurn()`, a real Supabase-backed `RuntimeRepository`, a real BSP-backed adapter, durable-execution debounce wiring (`infra/inngest`).
 - **Open decisions not yet locked**: first LOB to build fully (retail/D2C recommended, unconfirmed against a real pilot business), `generateWithConfidence()`'s actual threshold/max-attempt values (provisional, need real transcripts to calibrate), which BSP to actually sign up with (360dialog recommended, unverified).
