@@ -5,6 +5,7 @@ export { resolveContext, handleSandboxJoin } from "./context-resolver.js";
 export type { ResolvedContext, ContextResolution } from "./context-resolver.js";
 export { createInMemoryRepository } from "./repository.js";
 export type { RuntimeRepository } from "./repository.js";
+export { createDbRepository, DbRepositoryError } from "./db-repository.js";
 export { createMockBspAdapter } from "./bsp-adapter.js";
 export type { BspAdapter } from "./bsp-adapter.js";
 export { createThreeSixtyDialogAdapter, ThreeSixtyDialogError } from "./three-sixty-dialog-adapter.js";

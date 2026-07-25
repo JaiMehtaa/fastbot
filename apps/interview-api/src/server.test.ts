@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { createServer } from "./server.js";
 
 test("GET /health returns ok", async () => {
@@ -15,13 +16,23 @@ test("POST /interview/turn requires draftSessionId and text", async () => {
   assert.equal(response.statusCode, 400);
 });
 
+test("POST /interview/turn rejects a non-UUID draftSessionId", async () => {
+  const app = createServer();
+  const response = await app.inject({
+    method: "POST",
+    url: "/interview/turn",
+    payload: { draftSessionId: "not-a-uuid", text: "hello" },
+  });
+  assert.equal(response.statusCode, 400);
+});
+
 test("POST /interview/turn runs createServer()'s zero-config defaults (heuristic classify/extract, in-memory store) end to end", async () => {
   const app = createServer();
 
   const first = await app.inject({
     method: "POST",
     url: "/interview/turn",
-    payload: { draftSessionId: "http-demo-1", text: "I sell handmade soaps online, minimal support is fine" },
+    payload: { draftSessionId: randomUUID(), text: "I sell handmade soaps online, minimal support is fine" },
   });
   assert.equal(first.statusCode, 200);
   assert.equal(first.json().done, false);
@@ -29,7 +40,7 @@ test("POST /interview/turn runs createServer()'s zero-config defaults (heuristic
 
 test("POST /interview/turn persists state across turns via the session store, keyed by draftSessionId", async () => {
   const app = createServer();
-  const draftSessionId = "http-demo-2";
+  const draftSessionId = randomUUID();
 
   const first = await app.inject({
     method: "POST",

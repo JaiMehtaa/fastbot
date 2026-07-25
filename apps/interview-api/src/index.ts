@@ -2,6 +2,7 @@ export { createServer } from "./server.js";
 export type { ServerDeps } from "./server.js";
 export { createInMemorySessionStore } from "./session-store.js";
 export type { SessionStore } from "./session-store.js";
+export { createDbSessionStore, DbSessionStoreError } from "./db-session-store.js";
 export { classifyLob } from "./lob-classifier.js";
 export type { ClassifyLobFn, ClassifyResult, LobClassification } from "./lob-classifier.js";
 export { extractFields } from "./field-extractor.js";

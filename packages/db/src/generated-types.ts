@@ -1,6 +1,7 @@
-// Generated from a live local Supabase instance (migrations/0001_core_schema.sql
-// applied via `supabase db reset`) with `supabase gen types typescript --local`.
-// Regenerate the same way after any schema change — do not hand-edit.
+// Generated from a live local Supabase instance (migrations under
+// supabase/migrations/ applied via `supabase db reset`) with
+// `supabase gen types typescript --local`. Regenerate the same way after
+// any schema change — do not hand-edit.
 
 export type Json =
   | string
@@ -226,25 +227,31 @@ export type Database = {
       }
       draft_sessions: {
         Row: {
+          confirmed: boolean
           created_at: string
           expires_at: string | null
           id: string
+          lob_ambiguity_asked: boolean
           owner_contact: string | null
           status: string
           tenant_id: string | null
         }
         Insert: {
+          confirmed?: boolean
           created_at?: string
           expires_at?: string | null
           id?: string
+          lob_ambiguity_asked?: boolean
           owner_contact?: string | null
           status?: string
           tenant_id?: string | null
         }
         Update: {
+          confirmed?: boolean
           created_at?: string
           expires_at?: string | null
           id?: string
+          lob_ambiguity_asked?: boolean
           owner_contact?: string | null
           status?: string
           tenant_id?: string | null
@@ -261,6 +268,7 @@ export type Database = {
       }
       draft_wa_bindings: {
         Row: {
+          compiled_config: Json
           created_at: string
           draft_session_id: string
           expires_at: string
@@ -269,6 +277,7 @@ export type Database = {
           wa_id: string | null
         }
         Insert: {
+          compiled_config: Json
           created_at?: string
           draft_session_id: string
           expires_at: string
@@ -277,6 +286,7 @@ export type Database = {
           wa_id?: string | null
         }
         Update: {
+          compiled_config?: Json
           created_at?: string
           draft_session_id?: string
           expires_at?: string
