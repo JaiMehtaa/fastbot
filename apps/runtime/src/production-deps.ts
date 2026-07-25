@@ -1,8 +1,8 @@
 import { createOpenRouterClient } from "@whatsapp-bot-platform/eval";
 import { createInterpreter } from "./interpreter.js";
 import { createLlmFaqFallback } from "./llm-faq-fallback.js";
-import type { ProcessInboundMessageDeps } from "./process-inbound-message.js";
 import { createInMemoryRepository } from "./repository.js";
+import type { ServerDeps } from "./server.js";
 import { createThreeSixtyDialogAdapter } from "./three-sixty-dialog-adapter.js";
 
 /**
@@ -22,13 +22,20 @@ import { createThreeSixtyDialogAdapter } from "./three-sixty-dialog-adapter.js";
  */
 export function createProductionDeps(config: {
   sandboxPhoneNumberId: string;
+  sandboxWhatsAppNumber: string;
   openRouterApiKey?: string;
   threeSixtyDialogApiKey?: string;
-}): ProcessInboundMessageDeps {
+}): ServerDeps {
   const client = createOpenRouterClient({ apiKey: config.openRouterApiKey });
   const repository = createInMemoryRepository();
   const bspAdapter = createThreeSixtyDialogAdapter({ apiKey: config.threeSixtyDialogApiKey });
   const interpret = createInterpreter(createLlmFaqFallback(client));
 
-  return { repository, bspAdapter, interpret, sandboxPhoneNumberId: config.sandboxPhoneNumberId };
+  return {
+    repository,
+    bspAdapter,
+    interpret,
+    sandboxPhoneNumberId: config.sandboxPhoneNumberId,
+    sandboxWhatsAppNumber: config.sandboxWhatsAppNumber,
+  };
 }

@@ -6,7 +6,12 @@ if (!sandboxPhoneNumberId) {
   throw new Error("SANDBOX_PHONE_NUMBER_ID is not set — required to distinguish sandbox traffic from live tenants.");
 }
 
-const app = createServer(createProductionDeps({ sandboxPhoneNumberId }));
+const sandboxWhatsAppNumber = process.env.SANDBOX_WHATSAPP_NUMBER;
+if (!sandboxWhatsAppNumber) {
+  throw new Error("SANDBOX_WHATSAPP_NUMBER is not set — the real, dialable number used to render wa.me join links.");
+}
+
+const app = createServer(createProductionDeps({ sandboxPhoneNumberId, sandboxWhatsAppNumber }));
 const port = Number(process.env.PORT ?? 3002);
 
 app

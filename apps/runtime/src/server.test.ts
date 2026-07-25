@@ -5,8 +5,7 @@ import type { DraftConfig } from "@whatsapp-bot-platform/shared-types";
 import { createMockBspAdapter } from "./bsp-adapter.js";
 import { createInterpreter } from "./interpreter.js";
 import { createInMemoryRepository } from "./repository.js";
-import { createServer } from "./server.js";
-import type { ProcessInboundMessageDeps } from "./process-inbound-message.js";
+import { createServer, type ServerDeps } from "./server.js";
 
 function minimalDraft(): DraftConfig {
   return {
@@ -22,12 +21,13 @@ function minimalDraft(): DraftConfig {
   };
 }
 
-function makeDeps(): ProcessInboundMessageDeps {
+function makeDeps(): ServerDeps {
   return {
     repository: createInMemoryRepository(),
     bspAdapter: createMockBspAdapter(),
     interpret: createInterpreter(async () => null),
     sandboxPhoneNumberId: "sandbox-number",
+    sandboxWhatsAppNumber: "911234567890",
   };
 }
 
@@ -106,4 +106,33 @@ test("POST /webhook updates chat_history status by message id for a status webho
   assert.equal(response.statusCode, 200);
   const entry = (deps.repository as ReturnType<typeof createInMemoryRepository>).chatHistory[0];
   assert.equal(entry?.status, "delivered");
+});
+
+test("POST /sandbox/issue returns a token and wa.me joinUrl for a valid draft", async () => {
+  const app = createServer(makeDeps());
+  const response = await app.inject({ method: "POST", url: "/sandbox/issue", payload: { draft: minimalDraft() } });
+
+  assert.equal(response.statusCode, 200);
+  const body = response.json();
+  assert.ok(body.token);
+  assert.match(body.joinUrl, /^https:\/\/wa\.me\/911234567890\?text=/);
+});
+
+test("POST /sandbox/issue returns 422 for an invalid draft rather than issuing a token", async () => {
+  const app = createServer(makeDeps());
+  const invalidDraft: DraftConfig = {
+    draftSessionId: "invalid",
+    version: 1,
+    lobKey: "minimal_support",
+    selectedPrimitives: ["business_info", "faq_support", "human_escalation"],
+    fieldValues: { business_info: { business_name: "Meadow Soaps" } },
+  };
+  const response = await app.inject({ method: "POST", url: "/sandbox/issue", payload: { draft: invalidDraft } });
+  assert.equal(response.statusCode, 422);
+});
+
+test("POST /sandbox/issue requires a draft in the body", async () => {
+  const app = createServer(makeDeps());
+  const response = await app.inject({ method: "POST", url: "/sandbox/issue", payload: {} });
+  assert.equal(response.statusCode, 400);
 });

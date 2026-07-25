@@ -9,7 +9,7 @@
     "build": "tsc -b",
     "test": "tsc -b && node --test dist/*.test.js",
     "start": "node dist/start.js",
-    "dev": "node --watch dist/start.js"
+    "dev": "node --watch dist/dev-start.js"
   },
   "dependencies": {
     "@whatsapp-bot-platform/shared-types": "workspace:*",

@@ -1,4 +1,5 @@
 export { createServer } from "./server.js";
+export type { ServerDeps } from "./server.js";
 export { createInterpreter } from "./interpreter.js";
 export { resolveContext, handleSandboxJoin } from "./context-resolver.js";
 export type { ResolvedContext, ContextResolution } from "./context-resolver.js";
