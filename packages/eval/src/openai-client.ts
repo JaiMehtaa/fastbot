@@ -1,45 +1,44 @@
-export interface OpenRouterChatMessage {
+export interface OpenAiChatMessage {
   role: "system" | "user" | "assistant";
   content: string;
 }
 
-export interface OpenRouterChatOptions {
+export interface OpenAiChatOptions {
   model: string;
-  messages: readonly OpenRouterChatMessage[];
+  messages: readonly OpenAiChatMessage[];
   temperature?: number;
   responseFormat?: { type: "json_schema"; json_schema: Record<string, unknown> } | { type: "json_object" };
 }
 
-export interface OpenRouterClient {
-  chat(options: OpenRouterChatOptions): Promise<{ content: string }>;
+export interface OpenAiClient {
+  chat(options: OpenAiChatOptions): Promise<{ content: string }>;
 }
 
-export class OpenRouterClientError extends Error {}
+export class OpenAiClientError extends Error {}
 
 /**
- * Thin adapter over OpenRouter's chat completions API — the one LLM provider
- * used across the system (see docs/architecture.md, "Knowledge Strategy &
- * Confidence/Eval Layer"). Every real generate()/score() function passed to
+ * Thin adapter over OpenAI's chat completions API — the one LLM provider
+ * used across the system. Every real generate()/score() function passed to
  * generateWithConfidence() should eventually call through this, but the
  * orchestrator itself never depends on it directly — that's what keeps
  * generateWithConfidence() unit-testable without a live API key.
  *
  * Fails at construction time (not on first call) if no key is available, so
- * a missing OPENROUTER_API_KEY surfaces immediately at process startup
- * rather than deep into a user's first interview turn.
+ * a missing OPENAI_API_KEY surfaces immediately at process startup rather
+ * than deep into a user's first interview turn.
  */
-export function createOpenRouterClient(config: { apiKey?: string } = {}): OpenRouterClient {
-  const apiKey = config.apiKey ?? process.env.OPENROUTER_API_KEY;
+export function createOpenAiClient(config: { apiKey?: string } = {}): OpenAiClient {
+  const apiKey = config.apiKey ?? process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    throw new OpenRouterClientError(
-      "OPENROUTER_API_KEY is not set. Every LLM call site in this system (interview extraction, " +
+    throw new OpenAiClientError(
+      "OPENAI_API_KEY is not set. Every LLM call site in this system (interview extraction, " +
         "faq_support fallback, LOB classification) goes through this one client.",
     );
   }
 
   return {
-    async chat(options: OpenRouterChatOptions): Promise<{ content: string }> {
-      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    async chat(options: OpenAiChatOptions): Promise<{ content: string }> {
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,
@@ -55,7 +54,7 @@ export function createOpenRouterClient(config: { apiKey?: string } = {}): OpenRo
 
       if (!response.ok) {
         const body = await response.text();
-        throw new OpenRouterClientError(`OpenRouter request failed (${response.status}): ${body}`);
+        throw new OpenAiClientError(`OpenAI request failed (${response.status}): ${body}`);
       }
 
       const data = (await response.json()) as {
@@ -63,7 +62,7 @@ export function createOpenRouterClient(config: { apiKey?: string } = {}): OpenRo
       };
       const content = data.choices?.[0]?.message?.content;
       if (typeof content !== "string") {
-        throw new OpenRouterClientError("OpenRouter response missing choices[0].message.content");
+        throw new OpenAiClientError("OpenAI response missing choices[0].message.content");
       }
       return { content };
     },

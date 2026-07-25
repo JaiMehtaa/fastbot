@@ -30,7 +30,7 @@ function renderList(waId: string, faqs: readonly Faq[]): HandlerOutput {
  * codebase) — the real implementation wires packages/eval's
  * generateWithConfidence() with a separate judge call (per
  * docs/architecture.md "Knowledge Strategy & Confidence/Eval Layer"), but
- * that needs a live OpenRouter key that doesn't exist yet. Returning `null`
+ * that needs a live OpenAI key that doesn't exist yet. Returning `null`
  * from `fallback` means "low confidence" and routes to human_escalation,
  * never a possibly-wrong guess shown to the customer.
  */

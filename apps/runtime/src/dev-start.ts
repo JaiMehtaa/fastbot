@@ -5,8 +5,8 @@ import { createServer } from "./server.js";
 
 /**
  * Local-dev entrypoint using a mock BspAdapter and an always-escalate FAQ
- * fallback — no THREE_SIXTY_DIALOG_API_KEY/OPENROUTER_API_KEY required.
- * start.ts (real 360dialog + OpenRouter-backed deps) is the production
+ * fallback — no THREE_SIXTY_DIALOG_API_KEY/OPENAI_API_KEY required.
+ * start.ts (real 360dialog + OpenAI-backed deps) is the production
  * entrypoint; this one exists so apps/web's interview + sandbox-issue flow
  * can be exercised from an actual browser without live credentials. It
  * cannot prove a real WhatsApp round-trip — only that /sandbox/issue

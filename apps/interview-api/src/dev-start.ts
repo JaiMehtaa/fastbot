@@ -2,7 +2,7 @@ import { createServer } from "./server.js";
 
 /**
  * Local-dev entrypoint using createServer()'s zero-config heuristic defaults
- * — no OPENROUTER_API_KEY required. start.ts (real OpenRouter-backed deps)
+ * — no OPENAI_API_KEY required. start.ts (real OpenAI-backed deps)
  * is the production entrypoint; this one exists so the full pipeline can be
  * exercised from an actual browser without live credentials.
  */

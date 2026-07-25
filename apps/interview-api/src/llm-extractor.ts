@@ -1,9 +1,9 @@
 import { getPrimitive } from "@whatsapp-bot-platform/schema";
-import type { OpenRouterClient } from "@whatsapp-bot-platform/eval";
+import type { OpenAiClient } from "@whatsapp-bot-platform/eval";
 import type { FieldDefinition, MissingField } from "@whatsapp-bot-platform/shared-types";
 import type { ExtractFieldsFn, FieldExtraction } from "./field-extractor.js";
 
-export const DEFAULT_EXTRACTOR_MODEL = "openai/gpt-4o-mini";
+export const DEFAULT_EXTRACTOR_MODEL = "gpt-4o-mini";
 
 function findFieldDefinition(missingField: MissingField): FieldDefinition | undefined {
   const schema = getPrimitive(missingField.primitiveKey);
@@ -73,7 +73,7 @@ function hasValidShape(value: unknown, def: FieldDefinition): boolean {
 }
 
 /**
- * Real field extraction via OpenRouter — the production replacement for
+ * Real field extraction via OpenAI — the production replacement for
  * heuristic-extractor.ts's regex-based approximation. Unlike the heuristic
  * version (deliberately limited to missingFields[0], one field per turn),
  * this asks the model about every currently-missing field in one call, so a
@@ -85,7 +85,7 @@ function hasValidShape(value: unknown, def: FieldDefinition): boolean {
  * value's shape against the field's declared type and drops anything
  * malformed, rather than trusting the model's JSON at face value.
  */
-export function createLlmExtractFields(client: OpenRouterClient, model: string = DEFAULT_EXTRACTOR_MODEL): ExtractFieldsFn {
+export function createLlmExtractFields(client: OpenAiClient, model: string = DEFAULT_EXTRACTOR_MODEL): ExtractFieldsFn {
   return async function llmExtractFields({ freeText, missingFields }): Promise<readonly FieldExtraction[]> {
     const resolved = missingFields
       .map((missingField) => ({ missingField, def: findFieldDefinition(missingField) }))

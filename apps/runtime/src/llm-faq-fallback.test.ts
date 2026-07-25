@@ -1,11 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { OpenRouterClient } from "@whatsapp-bot-platform/eval";
+import type { OpenAiClient } from "@whatsapp-bot-platform/eval";
 import { createLlmFaqFallback } from "./llm-faq-fallback.js";
 
 const FAQS = [{ question: "Are your soaps vegan?", answer: "Yes, all of them are." }];
 
-function sequencedClient(responses: readonly string[]): { client: OpenRouterClient; callCount: () => number } {
+function sequencedClient(responses: readonly string[]): { client: OpenAiClient; callCount: () => number } {
   let i = 0;
   return {
     client: {

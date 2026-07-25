@@ -23,7 +23,7 @@ export interface ThreeSixtyDialogConfig {
  * `fetchImpl` is injected (same DI discipline as every other I/O boundary
  * in this codebase) so send() is unit-testable without a live 360dialog
  * account. Fails at construction time, not on first send(), if no key is
- * available — matches createOpenRouterClient's fail-loud pattern.
+ * available — matches createOpenAiClient's fail-loud pattern.
  */
 export function createThreeSixtyDialogAdapter(config: ThreeSixtyDialogConfig = {}): BspAdapter {
   const apiKey = config.apiKey ?? process.env.THREE_SIXTY_DIALOG_API_KEY;

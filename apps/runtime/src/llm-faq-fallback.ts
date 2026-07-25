@@ -1,8 +1,8 @@
-import { generateWithConfidence, type OpenRouterClient } from "@whatsapp-bot-platform/eval";
+import { generateWithConfidence, type OpenAiClient } from "@whatsapp-bot-platform/eval";
 import type { FaqFallbackFn } from "./handlers/faq-support.js";
 
-export const DEFAULT_FAQ_ANSWER_MODEL = "openai/gpt-4o-mini";
-export const DEFAULT_FAQ_JUDGE_MODEL = "openai/gpt-4o-mini";
+export const DEFAULT_FAQ_ANSWER_MODEL = "gpt-4o-mini";
+export const DEFAULT_FAQ_JUDGE_MODEL = "gpt-4o-mini";
 
 const GROUNDEDNESS_THRESHOLD = 0.7;
 const MAX_ATTEMPTS = 2;
@@ -17,7 +17,7 @@ function formatFaqs(faqs: readonly Faq[]): string {
 }
 
 async function generateAnswer(
-  client: OpenRouterClient,
+  client: OpenAiClient,
   model: string,
   question: string,
   faqs: readonly Faq[],
@@ -49,7 +49,7 @@ interface JudgeResult {
 }
 
 async function judgeGroundedness(
-  client: OpenRouterClient,
+  client: OpenAiClient,
   model: string,
   question: string,
   faqs: readonly Faq[],
@@ -86,7 +86,7 @@ async function judgeGroundedness(
 }
 
 /**
- * Real faq_support fallback via OpenRouter — the highest-stakes LLM call
+ * Real faq_support fallback via OpenAI — the highest-stakes LLM call
  * site in the system (docs/architecture.md, "Knowledge Strategy &
  * Confidence/Eval Layer"): it's the one that can reach a real customer with
  * a wrong answer if it's not gated properly. Uses a separate judge call
@@ -99,7 +99,7 @@ async function judgeGroundedness(
  * rather than ever showing a possibly-wrong answer to the customer.
  */
 export function createLlmFaqFallback(
-  client: OpenRouterClient,
+  client: OpenAiClient,
   options: { answerModel?: string; judgeModel?: string } = {},
 ): FaqFallbackFn {
   const answerModel = options.answerModel ?? DEFAULT_FAQ_ANSWER_MODEL;

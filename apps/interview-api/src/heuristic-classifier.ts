@@ -17,7 +17,7 @@ function overlapScore(a: Set<string>, b: Set<string>): number {
  * Local, no-LLM stand-in for real LOB classification: token-overlap scoring
  * against lob_recipes.classification_examples. Genuinely limited — no real
  * language understanding — but it's what lets the full interview flow work
- * end-to-end (and the server run at all) before a real OpenRouter-backed
+ * end-to-end (and the server run at all) before a real OpenAI-backed
  * classifier exists. Swap this out for a real ClassifyLobFn later; nothing
  * else changes since lob-classifier.ts only depends on the function shape.
  */

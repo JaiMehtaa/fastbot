@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { OpenRouterClient } from "@whatsapp-bot-platform/eval";
+import type { OpenAiClient } from "@whatsapp-bot-platform/eval";
 import type { MissingField } from "@whatsapp-bot-platform/shared-types";
 import { createLlmExtractFields } from "./llm-extractor.js";
 
@@ -8,7 +8,7 @@ function missing(primitiveKey: MissingField["primitiveKey"], fieldKey: string): 
   return [{ primitiveKey, fieldKey, label: fieldKey, interviewHint: "?" }];
 }
 
-function fakeClient(content: string): OpenRouterClient {
+function fakeClient(content: string): OpenAiClient {
   return { chat: async () => ({ content }) };
 }
 

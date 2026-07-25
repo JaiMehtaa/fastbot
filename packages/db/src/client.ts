@@ -10,7 +10,7 @@ export type DbClient = SupabaseClient<Database>;
  * apps/runtime, and apps/admin all go through this rather than each creating
  * their own Supabase client. Fails at construction time (not on first query)
  * if credentials are missing, same fail-loud pattern as packages/eval's
- * createOpenRouterClient.
+ * createOpenAiClient.
  *
  * Uses the service-role key, not the anon key — this is server-side access
  * that bypasses RLS by design. Every table in

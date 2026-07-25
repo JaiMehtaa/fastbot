@@ -23,9 +23,9 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 
 /**
  * Deps default to the heuristic (no-LLM) classify/extract functions and an
- * in-memory session store — no OpenRouter key or Supabase project needed,
+ * in-memory session store — no OpenAI key or Supabase project needed,
  * this genuinely runs and holds a (heuristic-quality) conversation out of
- * the box. Override any of them to swap in real, OpenRouter-backed
+ * the box. Override any of them to swap in real, OpenAI-backed
  * implementations later without touching this file's routing.
  */
 export function createServer(deps: Partial<ServerDeps> = {}): FastifyInstance {

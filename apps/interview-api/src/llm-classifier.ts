@@ -1,8 +1,8 @@
-import type { OpenRouterClient } from "@whatsapp-bot-platform/eval";
+import type { OpenAiClient } from "@whatsapp-bot-platform/eval";
 import type { LobRecipe } from "@whatsapp-bot-platform/shared-types";
 import type { ClassifyLobFn, LobClassification } from "./lob-classifier.js";
 
-export const DEFAULT_CLASSIFIER_MODEL = "openai/gpt-4o-mini";
+export const DEFAULT_CLASSIFIER_MODEL = "gpt-4o-mini";
 
 const RESPONSE_SCHEMA = {
   name: "lob_classification",
@@ -39,7 +39,7 @@ function buildPrompt(freeText: string, candidates: readonly LobRecipe[]): string
 }
 
 /**
- * Real LOB classification via OpenRouter — the production replacement for
+ * Real LOB classification via OpenAI — the production replacement for
  * heuristic-classifier.ts's token-overlap approximation. Self-reported
  * confidence per docs/architecture.md ("Knowledge Strategy & Confidence/Eval
  * Layer": LOB classification is self-reported, cheap, keeps latency low) —
@@ -48,7 +48,7 @@ function buildPrompt(freeText: string, candidates: readonly LobRecipe[]): string
  * producing one honest {lobKey, confidence, reason} triple, same contract
  * the heuristic implementation fulfills.
  */
-export function createLlmClassifyLob(client: OpenRouterClient, model: string = DEFAULT_CLASSIFIER_MODEL): ClassifyLobFn {
+export function createLlmClassifyLob(client: OpenAiClient, model: string = DEFAULT_CLASSIFIER_MODEL): ClassifyLobFn {
   return async function llmClassifyLob(freeText, candidates): Promise<LobClassification> {
     const response = await client.chat({
       model,

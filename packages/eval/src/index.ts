@@ -10,5 +10,5 @@ export type {
   ScoreFn,
   ScoreResult,
 } from "./types.js";
-export { OpenRouterClientError, createOpenRouterClient } from "./openrouter-client.js";
-export type { OpenRouterClient, OpenRouterChatOptions } from "./openrouter-client.js";
+export { OpenAiClientError, createOpenAiClient } from "./openai-client.js";
+export type { OpenAiClient, OpenAiChatOptions } from "./openai-client.js";

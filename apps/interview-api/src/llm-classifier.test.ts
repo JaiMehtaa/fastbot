@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { OpenRouterClient } from "@whatsapp-bot-platform/eval";
+import type { OpenAiClient } from "@whatsapp-bot-platform/eval";
 import type { LobRecipe } from "@whatsapp-bot-platform/shared-types";
 import { createLlmClassifyLob } from "./llm-classifier.js";
 
@@ -9,7 +9,7 @@ const CANDIDATES: readonly LobRecipe[] = [
   { key: "minimal_support", label: "General", defaultPrimitives: ["business_info"], classificationExamples: [] },
 ];
 
-function fakeClient(content: string): OpenRouterClient {
+function fakeClient(content: string): OpenAiClient {
   return { chat: async () => ({ content }) };
 }
 
