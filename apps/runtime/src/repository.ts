@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import type {
   ChatHistoryStatus,
   CompiledConfig,
@@ -53,6 +54,12 @@ export interface CreateTenantInput {
   compiledConfig: CompiledConfig;
 }
 
+export interface CreateDraftWaBindingInput {
+  draftSessionId: string;
+  compiledConfig: CompiledConfig;
+  ttlMs: number;
+}
+
 /**
  * Everything apps/runtime needs from the database, behind one interface —
  * same dependency-injection discipline as packages/eval's generate/score
@@ -66,6 +73,11 @@ export interface RuntimeRepository {
   /** The compile+publish gate (docs/architecture.md, "BSP Recommendation": "triggers the
    * compile+publish gate") — creates a live tenant from an already-compiled config. */
   createTenant(input: CreateTenantInput): Promise<{ tenantId: string }>;
+  /** Issuing side of the sandbox join-token flow (docs/architecture.md, "Sandbox
+   * Number Multiplexing Mechanism", points 1-2) — stores the compiled draft and
+   * creates a pending, time-limited binding a prospect can bind to by texting
+   * "JOIN <token>" to the shared sandbox number (see handleSandboxJoin). */
+  createDraftWaBinding(input: CreateDraftWaBindingInput): Promise<{ token: string; expiresAt: string }>;
   getDraftWaBinding(token: string): Promise<DraftWaBinding | null>;
   bindDraftWaBinding(token: string, waId: string): Promise<DraftLookup | null>;
   getBoundDraftByWaId(waId: string): Promise<DraftLookup | null>;
@@ -133,6 +145,14 @@ export function createInMemoryRepository(): InMemoryRuntimeRepository {
       const tenantId = `tenant-${tenantCounter}`;
       tenantsByPhoneNumberId.set(input.phoneNumberId, { tenantId, compiledConfig: input.compiledConfig });
       return { tenantId };
+    },
+
+    async createDraftWaBinding(input) {
+      draftsBySessionId.set(input.draftSessionId, input.compiledConfig);
+      const token = randomBytes(4).toString("hex");
+      const expiresAt = new Date(Date.now() + input.ttlMs).toISOString();
+      waBindings.set(token, { token, draftSessionId: input.draftSessionId, waId: null, status: "pending", expiresAt });
+      return { token, expiresAt };
     },
 
     async getDraftWaBinding(token) {

@@ -8,7 +8,8 @@
   "scripts": {
     "build": "tsc -b",
     "test": "tsc -b && node --test dist/*.test.js",
-    "dev": "node --watch dist/server.js"
+    "start": "node dist/start.js",
+    "dev": "node --watch dist/start.js"
   },
   "dependencies": {
     "@whatsapp-bot-platform/shared-types": "workspace:*",

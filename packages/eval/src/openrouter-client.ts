@@ -7,7 +7,7 @@ export interface OpenRouterChatOptions {
   model: string;
   messages: readonly OpenRouterChatMessage[];
   temperature?: number;
-  responseFormat?: { type: "json_schema"; json_schema: Record<string, unknown> };
+  responseFormat?: { type: "json_schema"; json_schema: Record<string, unknown> } | { type: "json_object" };
 }
 
 export interface OpenRouterClient {

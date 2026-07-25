@@ -11,6 +11,7 @@ import {
   createInMemoryRepository,
   createInterpreter,
   createMockBspAdapter,
+  issueSandboxBinding,
   processInboundMessage,
   promoteDraftToTenant,
   type WhatsAppOutboundButtonMessage,
@@ -59,7 +60,7 @@ function failureContext(ran: Ran, state: InterviewSessionState): string {
   return `conversation transcript:\n${ran.turns.map((t) => `> ${t.message}\n< ${t.responseText}`).join("\n")}\n\nfinal state: ${JSON.stringify(state, null, 2)}`;
 }
 
-async function buildPromotedTenant(phoneNumberId: string = DEMO_PHONE_NUMBER) {
+async function runInterviewToCompletion(): Promise<{ draft: DraftConfig; state: InterviewSessionState; ran: Ran }> {
   const deps = { classifyFn: heuristicClassifyLob, extractFn: heuristicExtractFields };
   const ran = await runScriptedInterview();
   let state = ran.state;
@@ -76,7 +77,11 @@ async function buildPromotedTenant(phoneNumberId: string = DEMO_PHONE_NUMBER) {
     selectedPrimitives: state.selectedPrimitives,
     fieldValues: state.fieldValues,
   };
+  return { draft, state, ran };
+}
 
+async function buildPromotedTenant(phoneNumberId: string = DEMO_PHONE_NUMBER) {
+  const { draft, state } = await runInterviewToCompletion();
   const repository = createInMemoryRepository();
   const { tenantId } = await promoteDraftToTenant(draft, phoneNumberId, repository);
   return { tenantId, repository, state };
@@ -242,4 +247,52 @@ test("interview: a garbage answer to a required field is not committed and the s
   const recoveryTurn = await processTurn(garbageTurn.state, "We're open 9am-6pm Monday to Friday", deps);
   state = recoveryTurn.state;
   assert.notEqual(JSON.stringify(state.fieldValues), beforeFieldValues, failureContext(ran, state));
+});
+
+const SANDBOX_PHONE_NUMBER_ID = "sandbox-phone-number-id";
+const SANDBOX_WHATSAPP_NUMBER = "911234567890";
+
+/**
+ * Proves the actual pre-signup product flow, not just the post-signup one:
+ * a completed interview issues a sandbox join-token (never promoted to a
+ * tenant, never bound to a real phone number), a prospect's real
+ * WhatsApp-shaped "JOIN <token>" message binds to it, and every message
+ * after that resolves through the exact same generic interpreter a live
+ * tenant uses — proving resolveContext's draft path, not just its tenant
+ * path, is genuinely wired end to end.
+ */
+test("sandbox pipeline: scripted interview -> sandbox join token -> real WhatsApp conversation, no tenant ever created", async () => {
+  const { draft } = await runInterviewToCompletion();
+  const repository = createInMemoryRepository();
+
+  const { token, joinUrl } = await issueSandboxBinding(draft, SANDBOX_WHATSAPP_NUMBER, repository);
+  assert.match(joinUrl, new RegExp(`^https://wa\\.me/${SANDBOX_WHATSAPP_NUMBER}\\?text=`));
+
+  const bspAdapter = createMockBspAdapter();
+  const interpret = createInterpreter(async () => null);
+  const runtimeDeps = { repository, bspAdapter, interpret, sandboxPhoneNumberId: SANDBOX_PHONE_NUMBER_ID };
+  const testerWaId = "919888888888";
+
+  const join = await processInboundMessage(
+    SANDBOX_PHONE_NUMBER_ID,
+    { waId: testerWaId, messageId: "s1", type: "text", text: `JOIN ${token}`, receivedAt: new Date().toISOString() },
+    runtimeDeps,
+  );
+  assert.equal(join.status, "processed");
+  const rootMenuMessage = bspAdapter.sentMessages[0] as WhatsAppOutboundListMessage;
+  assert.match(rootMenuMessage.interactive.header?.text ?? "", /Meadow Soaps/i);
+
+  // a second message from the same tester, with no token — resolves via the
+  // now-bound draft, exactly like a live tenant would resolve by phone_number_id
+  const catalogueTap = await processInboundMessage(
+    SANDBOX_PHONE_NUMBER_ID,
+    { waId: testerWaId, messageId: "s2", type: "interactive", interactiveReplyId: "root_catalogue", receivedAt: new Date().toISOString() },
+    runtimeDeps,
+  );
+  assert.equal(catalogueTap.status, "processed");
+  const catalogueMessage = bspAdapter.sentMessages[1] as WhatsAppOutboundListMessage;
+  assert.match(catalogueMessage.interactive.action.sections[0]?.rows[0]?.title ?? "", /Lavender Oatmeal Bar/);
+
+  // never promoted — no live tenant exists for any real phone number
+  assert.equal(await repository.getTenantByPhoneNumberId(DEMO_PHONE_NUMBER), null);
 });

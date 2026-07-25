@@ -55,3 +55,23 @@ test("createTenant registers a tenant lookup by phone_number_id", async () => {
   assert.equal(lookup?.tenantId, tenantId);
   assert.equal(lookup?.compiledConfig, compiledConfig);
 });
+
+test("createDraftWaBinding issues a distinct, pending, unexpired token per call", async () => {
+  const repository = createInMemoryRepository();
+  const compiledConfig = {
+    sourceId: "draft-1",
+    version: 1,
+    compiledAt: new Date().toISOString(),
+    rootMenu: { headerText: "hi", bodyText: "hi", entries: [] },
+    stateTable: {},
+  };
+
+  const first = await repository.createDraftWaBinding({ draftSessionId: "draft-1", compiledConfig, ttlMs: 60_000 });
+  const second = await repository.createDraftWaBinding({ draftSessionId: "draft-1", compiledConfig, ttlMs: 60_000 });
+
+  assert.notEqual(first.token, second.token);
+  const binding = await repository.getDraftWaBinding(first.token);
+  assert.equal(binding?.status, "pending");
+  assert.equal(binding?.waId, null);
+  assert.ok(new Date(binding!.expiresAt).getTime() > Date.now());
+});
