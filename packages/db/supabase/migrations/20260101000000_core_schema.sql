@@ -179,3 +179,15 @@ create table chat_history (
 );
 create index chat_history_context_idx on chat_history (context_type, context_id, wa_id);
 alter table chat_history enable row level security;
+
+-- RLS is enabled on every table above with no policies yet, so it denies all
+-- access by default — but that's independent of plain table-level grants,
+-- which Postgres also checks first. createDbClient() (packages/db/src/client.ts)
+-- always connects as service_role specifically to bypass RLS; without these
+-- grants it still gets "permission denied" before RLS is ever evaluated.
+-- Covers tables created by later migrations too, not just this one.
+grant usage on schema public to service_role;
+grant all on all tables in schema public to service_role;
+grant all on all sequences in schema public to service_role;
+alter default privileges in schema public grant all on tables to service_role;
+alter default privileges in schema public grant all on sequences to service_role;

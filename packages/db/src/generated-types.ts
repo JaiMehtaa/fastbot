@@ -1,135 +1,543 @@
-/**
- * Hand-written placeholder matching Supabase's `supabase gen types typescript`
- * output shape, kept in sync with migrations/0001_core_schema.sql by hand
- * until a real Supabase project exists to generate this for real. Replace
- * this whole file with the CLI's output at that point — do not keep both.
- */
+// Generated from a live local Supabase instance (migrations/0001_core_schema.sql
+// applied via `supabase db reset`) with `supabase gen types typescript --local`.
+// Regenerate the same way after any schema change — do not hand-edit.
 
-type TableDef<Row, DefaultedKeys extends keyof Row> = {
-  Row: Row;
-  Insert: Omit<Row, DefaultedKeys> & Partial<Pick<Row, DefaultedKeys>>;
-  Update: Partial<Row>;
-};
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
 
-export interface TenantRow {
-  id: string;
-  name: string;
-  status: "draft" | "live" | "suspended";
-  phone_number_id: string | null;
-  bsp_provider: string | null;
-  pricing_tier: string;
-  published_at: string | null;
-  created_at: string;
-}
-
-export interface TenantConfigRow {
-  id: string;
-  tenant_id: string;
-  version: number;
-  compiled_config: Record<string, unknown>;
-  source_draft_session_id: string | null;
-  compiled_at: string;
-}
-
-export interface DraftSessionRow {
-  id: string;
-  status: "in_progress" | "testing" | "promoted" | "abandoned" | "expired";
-  owner_contact: string | null;
-  tenant_id: string | null;
-  created_at: string;
-  expires_at: string | null;
-}
-
-export interface DraftConfigRow {
-  id: string;
-  draft_session_id: string;
-  version: number;
-  lob_key: string | null;
-  selected_primitives: string[];
-  field_values: Record<string, unknown>;
-  last_validation: Record<string, unknown> | null;
-  created_at: string;
-}
-
-export interface DraftWaBindingRow {
-  token: string;
-  draft_session_id: string;
-  wa_id: string | null;
-  status: "pending" | "bound" | "expired";
-  expires_at: string;
-  created_at: string;
-}
-
-export interface AccountTenantRow {
-  account_id: string;
-  tenant_id: string;
-  role: "owner" | "member";
-  created_at: string;
-}
-
-export interface AdminAccountRow {
-  id: string;
-  role: "admin" | "superadmin";
-  created_at: string;
-}
-
-export interface SupportTicketRow {
-  id: string;
-  context_type: "draft" | "tenant";
-  context_id: string;
-  wa_id: string;
-  summary: string;
-  status: "open" | "resolved";
-  created_at: string;
-}
-
-export interface DashboardNotificationRow {
-  id: string;
-  tenant_id: string;
-  type: "escalation" | "delivery_failure" | "config_validation_warning";
-  ref_id: string;
-  status: "unread" | "read" | "resolved";
-  created_at: string;
-}
-
-export interface ConversationStateRow {
-  context_type: "draft" | "tenant";
-  context_id: string;
-  wa_id: string;
-  current_state: string;
-  last_interaction: string;
-  pending_msg_id: string | null;
-}
-
-export interface ChatHistoryRow {
-  id: string;
-  context_type: "draft" | "tenant";
-  context_id: string;
-  wa_id: string;
-  message_id: string;
-  direction: "inbound" | "outbound";
-  payload: Record<string, unknown>;
-  status: string;
-  created_at: string;
-}
-
-export interface Database {
+export type Database = {
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
-      tenants: TableDef<TenantRow, "id" | "status" | "pricing_tier" | "created_at">;
-      tenant_configs: TableDef<TenantConfigRow, "id" | "version" | "compiled_at">;
-      draft_sessions: TableDef<DraftSessionRow, "id" | "status" | "created_at">;
-      draft_configs: TableDef<
-        DraftConfigRow,
-        "id" | "version" | "selected_primitives" | "field_values" | "created_at"
-      >;
-      draft_wa_bindings: TableDef<DraftWaBindingRow, "status" | "created_at">;
-      account_tenants: TableDef<AccountTenantRow, "role" | "created_at">;
-      admin_accounts: TableDef<AdminAccountRow, "role" | "created_at">;
-      support_tickets: TableDef<SupportTicketRow, "id" | "status" | "created_at">;
-      dashboard_notifications: TableDef<DashboardNotificationRow, "id" | "status" | "created_at">;
-      conversation_state: TableDef<ConversationStateRow, "current_state" | "last_interaction">;
-      chat_history: TableDef<ChatHistoryRow, "id" | "status" | "created_at">;
-    };
-  };
+      account_tenants: {
+        Row: {
+          account_id: string
+          created_at: string
+          role: string
+          tenant_id: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          role?: string
+          tenant_id: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          role?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_tenants_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      admin_accounts: {
+        Row: {
+          created_at: string
+          id: string
+          role: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          role?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: string
+        }
+        Relationships: []
+      }
+      chat_history: {
+        Row: {
+          context_id: string
+          context_type: string
+          created_at: string
+          direction: string
+          id: string
+          message_id: string
+          payload: Json
+          status: string
+          wa_id: string
+        }
+        Insert: {
+          context_id: string
+          context_type: string
+          created_at?: string
+          direction: string
+          id?: string
+          message_id: string
+          payload: Json
+          status?: string
+          wa_id: string
+        }
+        Update: {
+          context_id?: string
+          context_type?: string
+          created_at?: string
+          direction?: string
+          id?: string
+          message_id?: string
+          payload?: Json
+          status?: string
+          wa_id?: string
+        }
+        Relationships: []
+      }
+      conversation_state: {
+        Row: {
+          context_id: string
+          context_type: string
+          current_state: string
+          last_interaction: string
+          pending_msg_id: string | null
+          wa_id: string
+        }
+        Insert: {
+          context_id: string
+          context_type: string
+          current_state?: string
+          last_interaction?: string
+          pending_msg_id?: string | null
+          wa_id: string
+        }
+        Update: {
+          context_id?: string
+          context_type?: string
+          current_state?: string
+          last_interaction?: string
+          pending_msg_id?: string | null
+          wa_id?: string
+        }
+        Relationships: []
+      }
+      dashboard_notifications: {
+        Row: {
+          created_at: string
+          id: string
+          ref_id: string
+          status: string
+          tenant_id: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ref_id: string
+          status?: string
+          tenant_id: string
+          type: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ref_id?: string
+          status?: string
+          tenant_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dashboard_notifications_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      draft_configs: {
+        Row: {
+          created_at: string
+          draft_session_id: string
+          field_values: Json
+          id: string
+          last_validation: Json | null
+          lob_key: string | null
+          selected_primitives: string[]
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          draft_session_id: string
+          field_values?: Json
+          id?: string
+          last_validation?: Json | null
+          lob_key?: string | null
+          selected_primitives?: string[]
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          draft_session_id?: string
+          field_values?: Json
+          id?: string
+          last_validation?: Json | null
+          lob_key?: string | null
+          selected_primitives?: string[]
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "draft_configs_draft_session_id_fkey"
+            columns: ["draft_session_id"]
+            isOneToOne: false
+            referencedRelation: "draft_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      draft_sessions: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          id: string
+          owner_contact: string | null
+          status: string
+          tenant_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          owner_contact?: string | null
+          status?: string
+          tenant_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          owner_contact?: string | null
+          status?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "draft_sessions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      draft_wa_bindings: {
+        Row: {
+          created_at: string
+          draft_session_id: string
+          expires_at: string
+          status: string
+          token: string
+          wa_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          draft_session_id: string
+          expires_at: string
+          status?: string
+          token: string
+          wa_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          draft_session_id?: string
+          expires_at?: string
+          status?: string
+          token?: string
+          wa_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "draft_wa_bindings_draft_session_id_fkey"
+            columns: ["draft_session_id"]
+            isOneToOne: false
+            referencedRelation: "draft_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_tickets: {
+        Row: {
+          context_id: string
+          context_type: string
+          created_at: string
+          id: string
+          status: string
+          summary: string
+          wa_id: string
+        }
+        Insert: {
+          context_id: string
+          context_type: string
+          created_at?: string
+          id?: string
+          status?: string
+          summary: string
+          wa_id: string
+        }
+        Update: {
+          context_id?: string
+          context_type?: string
+          created_at?: string
+          id?: string
+          status?: string
+          summary?: string
+          wa_id?: string
+        }
+        Relationships: []
+      }
+      tenant_configs: {
+        Row: {
+          compiled_at: string
+          compiled_config: Json
+          id: string
+          source_draft_session_id: string | null
+          tenant_id: string
+          version: number
+        }
+        Insert: {
+          compiled_at?: string
+          compiled_config: Json
+          id?: string
+          source_draft_session_id?: string | null
+          tenant_id: string
+          version?: number
+        }
+        Update: {
+          compiled_at?: string
+          compiled_config?: Json
+          id?: string
+          source_draft_session_id?: string | null
+          tenant_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_configs_source_draft_session_id_fkey"
+            columns: ["source_draft_session_id"]
+            isOneToOne: false
+            referencedRelation: "draft_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_configs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenants: {
+        Row: {
+          bsp_provider: string | null
+          created_at: string
+          id: string
+          name: string
+          phone_number_id: string | null
+          pricing_tier: string
+          published_at: string | null
+          status: string
+        }
+        Insert: {
+          bsp_provider?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          phone_number_id?: string | null
+          pricing_tier?: string
+          published_at?: string | null
+          status?: string
+        }
+        Update: {
+          bsp_provider?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          phone_number_id?: string | null
+          pricing_tier?: string
+          published_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
 }
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
+  public: {
+    Enums: {},
+  },
+} as const
+

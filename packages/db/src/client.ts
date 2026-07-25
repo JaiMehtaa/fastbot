@@ -13,9 +13,10 @@ export type DbClient = SupabaseClient<Database>;
  * createOpenRouterClient.
  *
  * Uses the service-role key, not the anon key — this is server-side access
- * that bypasses RLS by design. Every table in migrations/0001_core_schema.sql
- * has RLS enabled with no policies yet, so an anon-key client could not do
- * anything useful here even if one were built.
+ * that bypasses RLS by design. Every table in
+ * supabase/migrations/20260101000000_core_schema.sql has RLS enabled with no
+ * policies yet, so an anon-key client could not do anything useful here even
+ * if one were built.
  */
 export function createDbClient(config: { url?: string; serviceKey?: string } = {}): DbClient {
   const url = config.url ?? process.env.SUPABASE_URL;
