@@ -8,6 +8,7 @@
     { "path": "packages/synthetic-gen" },
     { "path": "packages/db" },
     { "path": "apps/runtime" },
-    { "path": "apps/interview-api" }
+    { "path": "apps/interview-api" },
+    { "path": "tools/e2e-demo" }
   ]
 }

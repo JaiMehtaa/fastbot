@@ -230,6 +230,28 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
+  tools/e2e-demo:
+    dependencies:
+      '@whatsapp-bot-platform/compiler':
+        specifier: workspace:*
+        version: link:../../packages/compiler
+      '@whatsapp-bot-platform/interview-api':
+        specifier: workspace:*
+        version: link:../../apps/interview-api
+      '@whatsapp-bot-platform/runtime':
+        specifier: workspace:*
+        version: link:../../apps/runtime
+      '@whatsapp-bot-platform/shared-types':
+        specifier: workspace:*
+        version: link:../../packages/shared-types
+    devDependencies:
+      '@types/node':
+        specifier: ^26.1.1
+        version: 26.1.1
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
 packages:
 
   '@emnapi/runtime@1.11.2':

@@ -47,6 +47,12 @@ export interface SupportTicketInput {
   summary: string;
 }
 
+export interface CreateTenantInput {
+  name: string;
+  phoneNumberId: string;
+  compiledConfig: CompiledConfig;
+}
+
 /**
  * Everything apps/runtime needs from the database, behind one interface —
  * same dependency-injection discipline as packages/eval's generate/score
@@ -57,6 +63,9 @@ export interface SupportTicketInput {
  */
 export interface RuntimeRepository {
   getTenantByPhoneNumberId(phoneNumberId: string): Promise<TenantLookup | null>;
+  /** The compile+publish gate (docs/architecture.md, "BSP Recommendation": "triggers the
+   * compile+publish gate") — creates a live tenant from an already-compiled config. */
+  createTenant(input: CreateTenantInput): Promise<{ tenantId: string }>;
   getDraftWaBinding(token: string): Promise<DraftWaBinding | null>;
   bindDraftWaBinding(token: string, waId: string): Promise<DraftLookup | null>;
   getBoundDraftByWaId(waId: string): Promise<DraftLookup | null>;
@@ -104,6 +113,7 @@ export function createInMemoryRepository(): InMemoryRuntimeRepository {
   const supportTickets: (SupportTicketInput & { id: string })[] = [];
   const dashboardNotifications: DashboardNotificationInput[] = [];
   let ticketCounter = 0;
+  let tenantCounter = 0;
 
   return {
     tenantsByPhoneNumberId,
@@ -116,6 +126,13 @@ export function createInMemoryRepository(): InMemoryRuntimeRepository {
 
     async getTenantByPhoneNumberId(phoneNumberId) {
       return tenantsByPhoneNumberId.get(phoneNumberId) ?? null;
+    },
+
+    async createTenant(input) {
+      tenantCounter += 1;
+      const tenantId = `tenant-${tenantCounter}`;
+      tenantsByPhoneNumberId.set(input.phoneNumberId, { tenantId, compiledConfig: input.compiledConfig });
+      return { tenantId };
     },
 
     async getDraftWaBinding(token) {

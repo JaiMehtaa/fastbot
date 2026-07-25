@@ -10,3 +10,9 @@ export { parseWebhookPayload } from "./webhook-payload.js";
 export type { ParsedWebhookEvent } from "./webhook-payload.js";
 export { processInboundMessage } from "./process-inbound-message.js";
 export type { ProcessInboundMessageDeps, ProcessInboundMessageResult } from "./process-inbound-message.js";
+export { promoteDraftToTenant, PromotionError } from "./promote-tenant.js";
+export type {
+  WhatsAppOutboundMessage,
+  WhatsAppOutboundListMessage,
+  WhatsAppOutboundButtonMessage,
+} from "./whatsapp-payload.js";

@@ -38,3 +38,20 @@ test("getDraftWaBinding returns the stored binding or null", async () => {
   const binding = await repository.getDraftWaBinding("tok-1");
   assert.equal(binding?.draftSessionId, "draft-1");
 });
+
+test("createTenant registers a tenant lookup by phone_number_id", async () => {
+  const repository = createInMemoryRepository();
+  const compiledConfig = {
+    sourceId: "draft-1",
+    version: 1,
+    compiledAt: new Date().toISOString(),
+    rootMenu: { headerText: "hi", bodyText: "hi", entries: [] },
+    stateTable: {},
+  };
+
+  const { tenantId } = await repository.createTenant({ name: "Meadow Soaps", phoneNumberId: "phone-1", compiledConfig });
+
+  const lookup = await repository.getTenantByPhoneNumberId("phone-1");
+  assert.equal(lookup?.tenantId, tenantId);
+  assert.equal(lookup?.compiledConfig, compiledConfig);
+});

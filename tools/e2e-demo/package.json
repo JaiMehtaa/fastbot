@@ -1,0 +1,20 @@
+{
+  "name": "@whatsapp-bot-platform/e2e-demo",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "test": "tsc -b && node --test dist/*.test.js"
+  },
+  "dependencies": {
+    "@whatsapp-bot-platform/shared-types": "workspace:*",
+    "@whatsapp-bot-platform/compiler": "workspace:*",
+    "@whatsapp-bot-platform/interview-api": "workspace:*",
+    "@whatsapp-bot-platform/runtime": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "@types/node": "^26.1.1"
+  }
+}
