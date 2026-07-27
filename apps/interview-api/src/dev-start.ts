@@ -1,12 +1,19 @@
+import { createDbClient } from "@whatsapp-bot-platform/db";
+import { createDbSessionStore } from "./db-session-store.js";
 import { createServer } from "./server.js";
 
 /**
- * Local-dev entrypoint using createServer()'s zero-config heuristic defaults
- * — no OPENAI_API_KEY required. start.ts (real OpenAI-backed deps)
- * is the production entrypoint; this one exists so the full pipeline can be
- * exercised from an actual browser without live credentials.
+ * Local-dev entrypoint using heuristic (no-LLM) classify/extract — no
+ * OPENAI_API_KEY required — but a REAL, DB-backed session store. A draft
+ * completed here is a real draft_configs row, which apps/dashboard's
+ * connect-your-number flow (Phase C) needs to find — an in-memory session
+ * store (createServer()'s own zero-config default) would make every draft
+ * invisible outside this process, breaking that flow even though the
+ * interview itself "worked." Requires SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY
+ * (e.g. a local `supabase start` stack); still no OPENAI_API_KEY needed.
+ * start.ts (real OpenAI + DB) is the production entrypoint.
  */
-const app = createServer();
+const app = createServer({ sessionStore: createDbSessionStore(createDbClient()) });
 const port = Number(process.env.PORT ?? 3001);
 
 app

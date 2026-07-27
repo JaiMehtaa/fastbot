@@ -33,6 +33,8 @@ interface SandboxResponse {
 const OPENING_MESSAGE =
   "Hi! Tell me a bit about your business — what you sell, or the kind of support you'd like this bot to handle.";
 
+const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "http://localhost:3003";
+
 export function InterviewChat() {
   const [draftSessionId] = useState(() => crypto.randomUUID());
   const [messages, setMessages] = useState<ChatMessage[]>([{ role: "assistant", text: OPENING_MESSAGE }]);
@@ -157,6 +159,12 @@ export function InterviewChat() {
               Open WhatsApp to test your bot →
             </a>
           )}
+          <a
+            href={`${DASHBOARD_URL}/signup?draftSessionId=${draftSessionId}`}
+            className="text-sm text-emerald-300 underline underline-offset-2"
+          >
+            Happy with it? Sign up to connect your real number →
+          </a>
         </div>
       )}
     </div>
