@@ -72,6 +72,27 @@ test("extracts a catalogue item even when the name is phrased with a trigger wor
   assert.doesNotMatch(value[0]!.name, /^called/i);
 });
 
+test("extracts a catalogue item from a URL alone, deriving a name from the URL's last path segment", async () => {
+  const result = await heuristicExtractFields({
+    freeText: "https://www.zara.com/in/en/man-tshirts-l855.html?v1=2432042&regionGroupId=231",
+    missingFields: missing("catalogue", "items"),
+  });
+  assert.equal(result.length, 1);
+  const value = result[0]?.value as Array<{ name: string; link: string }>;
+  assert.match(value[0]!.name, /Man Tshirts L855/i);
+  assert.equal(value[0]!.link, "https://www.zara.com/in/en/man-tshirts-l855.html?v1=2432042&regionGroupId=231");
+  assert.ok(result[0]!.confidence < 0.75, "a derived name should be less confident than an explicit one");
+});
+
+test("extracts a catalogue item from a bare URL with no path, deriving a name from the hostname", async () => {
+  const result = await heuristicExtractFields({
+    freeText: "https://example.com",
+    missingFields: missing("catalogue", "items"),
+  });
+  const value = result[0]?.value as Array<{ name: string; link: string }>;
+  assert.match(value[0]!.name, /example/i);
+});
+
 test("does not extract a catalogue item when there's no URL in the message", async () => {
   const result = await heuristicExtractFields({
     freeText: "we sell handmade soap, lavender scent",

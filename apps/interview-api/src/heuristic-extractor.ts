@@ -10,6 +10,7 @@ function findFieldDefinition(missingField: MissingField): FieldDefinition | unde
 interface Candidate {
   value: unknown;
   confidence: number;
+  reason?: string;
 }
 
 // Anchored to the start: "we're called Meadow Soaps" stacks two trigger
@@ -117,16 +118,46 @@ function extractQaShapedItem(first: FieldDefinition, second: FieldDefinition, te
   return null;
 }
 
+// A message that's nothing but a URL (no name text alongside it) is a real,
+// common case — a user pasting a product link on its own, expecting to be
+// asked for a name next turn rather than silently stuck. Deriving a rough
+// name from the URL itself (last path segment, humanized) means it still
+// commits — at lower confidence, since it's a guess, not what they said.
+function deriveNameFromUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    const segments = parsed.pathname.split("/").filter(Boolean);
+    const last = segments[segments.length - 1];
+    const raw = last ? last.replace(/\.\w+$/, "") : parsed.hostname.replace(/^www\./, "");
+    const humanized = raw
+      .replace(/[-_]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+    return humanized || null;
+  } catch {
+    return null;
+  }
+}
+
 function extractNameAndLinkItem(nameField: FieldDefinition, urlField: FieldDefinition, text: string): Candidate | null {
   const urlMatch = URL_PATTERN.exec(text);
   if (!urlMatch) return null;
 
   const url = urlMatch[0].replace(/[.,)]+$/, "");
   const remainder = text.replace(urlMatch[0], "").trim();
-  const name = stripNameTriggers(remainder) || remainder;
-  if (!name) return null;
+  const explicitName = stripNameTriggers(remainder) || remainder;
+  if (explicitName) {
+    return { value: [{ [nameField.key]: explicitName, [urlField.key]: url }], confidence: 0.75 };
+  }
 
-  return { value: [{ [nameField.key]: name, [urlField.key]: url }], confidence: 0.75 };
+  const derivedName = deriveNameFromUrl(url);
+  if (!derivedName) return null;
+  return {
+    value: [{ [nameField.key]: derivedName, [urlField.key]: url }],
+    confidence: 0.65,
+    reason: `Guessed the name from the URL ("${derivedName}") — no name was given in the message.`,
+  };
 }
 
 /**
@@ -191,6 +222,7 @@ export const heuristicExtractFields: ExtractFieldsFn = async ({ freeText, missin
     fieldKey: target.fieldKey,
     value: candidate.value,
     confidence: candidate.confidence,
+    reason: candidate.reason,
   };
   return [extraction];
 };
