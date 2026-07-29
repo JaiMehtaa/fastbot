@@ -67,6 +67,28 @@ test("accepts a top-level object wrapping the array, and strips a markdown code 
   assert.equal(result[0]?.value, "Meadow Soaps");
 });
 
+test("accepts a single bare extraction object with no array wrapper at all", async () => {
+  // Regression test: discovered live against real gpt-4o-mini, not caught by any
+  // prior test — when only one field is being asked about, response_format:
+  // json_object's top-level-object requirement led the model to return the
+  // single extraction directly (no "extractions" wrapper, not an array),
+  // which silently extracted nothing every single turn.
+  const client = fakeClient(
+    JSON.stringify({ primitiveKey: "business_info", fieldKey: "business_name", value: "Meadow Soaps", confidence: 1, reason: "..." }),
+  );
+  const extract = createLlmExtractFields(client);
+  const result = await extract({ freeText: "Meadow Soaps", missingFields: missing("business_info", "business_name") });
+  assert.equal(result.length, 1);
+  assert.equal(result[0]?.value, "Meadow Soaps");
+});
+
+test("treats a null JSON value as no extractions rather than throwing", async () => {
+  const client = fakeClient("null");
+  const extract = createLlmExtractFields(client);
+  const result = await extract({ freeText: "anything", missingFields: missing("business_info", "business_name") });
+  assert.deepEqual(result, []);
+});
+
 test("treats malformed JSON as no extractions rather than throwing", async () => {
   const client = fakeClient("not json");
   const extract = createLlmExtractFields(client);

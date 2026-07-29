@@ -35,9 +35,10 @@ function buildPrompt(freeText: string, fields: readonly { missingField: MissingF
     `one field at once. Do NOT include a field in your response if the message doesn't address it; do NOT ` +
     `guess or invent a value.\n\nFields still needed:\n${fieldDescriptions}\n\n` +
     `Business owner's message: "${freeText}"\n\n` +
-    `Respond with ONLY a JSON array (no markdown, no prose), one object per field you could confidently ` +
-    `extract: [{"primitiveKey": "...", "fieldKey": "...", "value": <matching the field's type above>, ` +
-    `"confidence": <0 to 1>, "reason": "..."}]. If the message addresses none of the fields, respond with [].`
+    `Respond with ONLY JSON (no markdown, no prose): {"extractions": [...]}, where "extractions" is an array ` +
+    `with one object per field you could confidently extract: {"primitiveKey": "...", "fieldKey": "...", ` +
+    `"value": <matching the field's type above>, "confidence": <0 to 1>, "reason": "..."}. If the message ` +
+    `addresses none of the fields, respond with {"extractions": []}.`
   );
 }
 
@@ -105,12 +106,23 @@ export function createLlmExtractFields(client: OpenAiClient, model: string = DEF
     } catch {
       return [];
     }
+    if (typeof parsed !== "object" || parsed === null) return [];
 
-    // some models wrap a requested array in a top-level object (e.g. {"extractions": [...]})
-    // despite the prompt asking for a bare array — accept the first array-valued property too
-    const candidates = Array.isArray(parsed)
-      ? parsed
-      : (Object.values(parsed as Record<string, unknown>).find((v) => Array.isArray(v)) ?? []);
+    // response_format: json_object forces a top-level object, not an array, so the
+    // prompt asks for {"extractions": [...]} — but real models don't always comply
+    // exactly. Discovered live: when only one field is being asked about, gpt-4o-mini
+    // sometimes returns the single extraction object directly with no wrapper at all
+    // (e.g. {"primitiveKey": "...", "fieldKey": "...", ...}), which every other shape
+    // check below missed entirely — accept any array-valued property as a fallback,
+    // and a single bare extraction-shaped object as a last resort.
+    let candidates: unknown;
+    if (Array.isArray(parsed)) {
+      candidates = parsed;
+    } else {
+      const record = parsed as Record<string, unknown>;
+      const arrayProperty = Object.values(record).find((v) => Array.isArray(v));
+      candidates = arrayProperty ?? (typeof record.primitiveKey === "string" && typeof record.fieldKey === "string" ? [record] : []);
+    }
     if (!Array.isArray(candidates)) return [];
 
     const byKey = new Map(resolved.map((f) => [`${f.missingField.primitiveKey}.${f.def.key}`, f.def]));
