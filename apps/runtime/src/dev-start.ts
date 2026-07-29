@@ -1,19 +1,24 @@
+import { createDbClient } from "@whatsapp-bot-platform/db";
 import { createMockBspAdapter } from "./bsp-adapter.js";
+import { createDbRepository } from "./db-repository.js";
 import { createInterpreter } from "./interpreter.js";
-import { createInMemoryRepository } from "./repository.js";
 import { createServer } from "./server.js";
 
 /**
  * Local-dev entrypoint using a mock BspAdapter and an always-escalate FAQ
- * fallback — no THREE_SIXTY_DIALOG_API_KEY/OPENAI_API_KEY required.
+ * fallback — no THREE_SIXTY_DIALOG_API_KEY/OPENAI_API_KEY required — but a
+ * REAL, DB-backed repository. Same reasoning as apps/interview-api's
+ * dev-start.ts: apps/dashboard's connect-your-number flow creates real
+ * `tenants` rows in Postgres directly (not through this server), so an
+ * in-memory repository here would never see them — every tenant would look
+ * "unknown" to /webhook and /preview/message even though it's real and
+ * live. Requires SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY (e.g. a local
+ * `supabase start` stack); still no OPENAI/360dialog key needed.
  * start.ts (real 360dialog + OpenAI-backed deps) is the production
- * entrypoint; this one exists so apps/web's interview + sandbox-issue flow
- * can be exercised from an actual browser without live credentials. It
- * cannot prove a real WhatsApp round-trip — only that /sandbox/issue
- * returns a real token and joinUrl for a real completed draft.
+ * entrypoint.
  */
 const app = createServer({
-  repository: createInMemoryRepository(),
+  repository: createDbRepository(createDbClient()),
   bspAdapter: createMockBspAdapter(),
   interpret: createInterpreter(async () => null),
   sandboxPhoneNumberId: process.env.SANDBOX_PHONE_NUMBER_ID ?? "dev-sandbox-phone-number-id",
