@@ -30,7 +30,7 @@ export function WhatsappPreview() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function send(message: { type: "text"; text: string } | { type: "interactive"; interactiveReplyId: string }): Promise<void> {
+  async function send(message: { type: "text"; text: string } | { type: "interactive"; interactiveReplyId: string }): Promise<boolean> {
     setSending(true);
     setError(null);
     try {
@@ -45,9 +45,22 @@ export function WhatsappPreview() {
       const data = await response.json();
       if (!response.ok) {
         setError(data.error ?? "That number isn't connected to a live bot yet.");
-        return;
+        return false;
+      }
+      // /preview/message always replies 200, even when nothing matched — a
+      // wrong/unconnected phoneNumberId comes back as status: "unknown_number"
+      // with an empty sentMessages array, which silently looked like nothing
+      // happened at all rather than a clear "that number isn't live" error.
+      if (data.status !== "processed") {
+        setError(
+          data.status === "unknown_number"
+            ? `No live bot is connected to phone number ID "${phoneNumberId}" — check it's the exact ID you used on the dashboard's connect page.`
+            : `Unexpected status: ${data.status}`,
+        );
+        return false;
       }
       setEntries((prev) => [...prev, ...data.sentMessages.map((m: OutboundMessage) => ({ direction: "outbound" as const, message: m }))]);
+      return true;
     } finally {
       setSending(false);
     }
@@ -55,8 +68,11 @@ export function WhatsappPreview() {
 
   async function startChat(): Promise<void> {
     if (!phoneNumberId.trim()) return;
-    setStarted(true);
-    await send({ type: "text", text: "hi" });
+    // Only enter the chat view once the number actually proves live — a
+    // failed first message used to strand you in the chat UI with a
+    // wrong phoneNumberId and no way back to fix it.
+    const ok = await send({ type: "text", text: "hi" });
+    if (ok) setStarted(true);
   }
 
   function handleTap(rowOrButtonId: string, title: string): void {
