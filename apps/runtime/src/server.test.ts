@@ -22,10 +22,11 @@ function minimalDraft(): DraftConfig {
 }
 
 function makeDeps(): ServerDeps {
+  const repository = createInMemoryRepository();
   return {
-    repository: createInMemoryRepository(),
+    repository,
     bspAdapter: createMockBspAdapter(),
-    interpret: createInterpreter(async () => null),
+    interpret: createInterpreter(async () => null, repository),
     sandboxPhoneNumberId: "sandbox-number",
     sandboxWhatsAppNumber: "911234567890",
   };
@@ -164,14 +165,10 @@ test("POST /preview/message returns the bot's reply directly, without touching t
 });
 
 test("POST /preview/message succeeds on a second request to the same tenant, and each response is scoped to only its own new message", async () => {
-  // Regression test: the preview mock adapter is shared server-lifetime, not
-  // recreated per request — a fresh one each time reset its messageId
-  // counter to 1, colliding with chat_history's real (context_type,
-  // context_id, message_id) uniqueness constraint on the second message
-  // ever sent to the same tenant. createInMemoryRepository() doesn't
-  // enforce that constraint, so this doesn't reproduce the original 500 —
-  // it proves the response-slicing logic (no accumulation across requests);
-  // the fix itself was verified live against real Postgres separately.
+  // Each /preview/message request gets its own fresh mock BSP adapter
+  // (bsp-adapter.ts's messageId is a random UUID, not a counter that needs
+  // to keep incrementing across requests — no chat_history collision risk),
+  // so responses never accumulate across requests to the same tenant.
   const deps = makeDeps();
   (deps.repository as ReturnType<typeof createInMemoryRepository>).tenantsByPhoneNumberId.set("948385815035482", {
     tenantId: "tenant-1",
@@ -199,8 +196,76 @@ test("POST /preview/message succeeds on a second request to the same tenant, and
   // both responses only contain that request's own new message, not an accumulating history
 });
 
+test("POST /preview/message doesn't leak one concurrent request's outbound message into another's response", async () => {
+  // Regression test: a shared, server-lifetime mock BSP adapter with
+  // before/after-length response slicing isn't request-isolated under real
+  // concurrency — two genuinely simultaneous requests could each read a
+  // slice containing the OTHER request's outbound message (found live via
+  // QA testing: two customers tapping the same booking slot at once each
+  // saw both replies). Fired without awaiting between them, so both are
+  // genuinely in flight together.
+  const deps = makeDeps();
+  (deps.repository as ReturnType<typeof createInMemoryRepository>).tenantsByPhoneNumberId.set("948385815035482", {
+    tenantId: "tenant-1",
+    compiledConfig: compile(minimalDraft()),
+  });
+  const app = createServer(deps);
+
+  const [first, second] = await Promise.all([
+    app.inject({
+      method: "POST",
+      url: "/preview/message",
+      payload: { phoneNumberId: "948385815035482", message: { waId: "wa-a", messageId: "concurrent-a", type: "text", text: "hi", receivedAt: new Date().toISOString() } },
+    }),
+    app.inject({
+      method: "POST",
+      url: "/preview/message",
+      payload: { phoneNumberId: "948385815035482", message: { waId: "wa-b", messageId: "concurrent-b", type: "text", text: "hi", receivedAt: new Date().toISOString() } },
+    }),
+  ]);
+
+  assert.equal(first.json().sentMessages.length, 1);
+  assert.equal(second.json().sentMessages.length, 1);
+  assert.equal(first.json().sentMessages[0].to, "wa-a");
+  assert.equal(second.json().sentMessages[0].to, "wa-b");
+});
+
 test("POST /preview/message requires phoneNumberId and message", async () => {
   const app = createServer(makeDeps());
   const response = await app.inject({ method: "POST", url: "/preview/message", payload: {} });
   assert.equal(response.statusCode, 400);
+});
+
+test("POST /preview/message rejects a message missing messageId with a clean 400, not a raw DB error", async () => {
+  // Regression test: found live by an automated test round — a missing
+  // messageId/waId used to reach insertChatHistory() and come back as a raw
+  // Postgres "null value in column ... violates not-null constraint" 500.
+  const app = createServer(makeDeps());
+  const response = await app.inject({
+    method: "POST",
+    url: "/preview/message",
+    payload: { phoneNumberId: "948385815035482", message: { waId: "919999999999", type: "text", text: "hi", receivedAt: new Date().toISOString() } },
+  });
+  assert.equal(response.statusCode, 400);
+  assert.match(response.json().error, /messageId/);
+});
+
+test("POST /preview/message rejects an empty message object with a clean 400", async () => {
+  const app = createServer(makeDeps());
+  const response = await app.inject({ method: "POST", url: "/preview/message", payload: { phoneNumberId: "948385815035482", message: {} } });
+  assert.equal(response.statusCode, 400);
+});
+
+test("POST /preview/message rejects an invalid message.type", async () => {
+  const app = createServer(makeDeps());
+  const response = await app.inject({
+    method: "POST",
+    url: "/preview/message",
+    payload: {
+      phoneNumberId: "948385815035482",
+      message: { waId: "919999999999", messageId: "m1", type: "carrier_pigeon", receivedAt: new Date().toISOString() },
+    },
+  });
+  assert.equal(response.statusCode, 400);
+  assert.match(response.json().error, /message\.type/);
 });

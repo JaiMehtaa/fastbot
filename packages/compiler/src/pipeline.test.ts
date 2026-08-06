@@ -37,6 +37,14 @@ test("a fully-filled retail_d2c draft validates clean", () => {
   assert.deepEqual(result.issues, []);
 });
 
+test("a draft with no capabilities selected is invalid, not trivially valid", () => {
+  const draft = retailDraft();
+  const emptyDraft: DraftConfig = { ...draft, selectedPrimitives: [], fieldValues: {} };
+  const result = validateDraft(emptyDraft);
+  assert.equal(result.valid, false);
+  assert.ok(result.issues.some((issue) => issue.severity === "error"));
+});
+
 test("compiling a valid draft produces one root-menu entry and correct state table per primitive", () => {
   const compiled = compile(retailDraft());
 
@@ -161,6 +169,32 @@ test("an invalid optional field surfaces as an issue, not a missing-required-fie
       (issue) => issue.primitiveKey === "business_info" && issue.fieldKey === "website" && issue.severity === "error",
     ),
   );
+});
+
+test("compiling a booking draft merges business_info.hours into booking's handlerArgs as businessHours", () => {
+  const draft = retailDraft();
+  const bookingDraft: DraftConfig = {
+    ...draft,
+    selectedPrimitives: [...draft.selectedPrimitives, "booking"],
+    fieldValues: {
+      ...draft.fieldValues,
+      booking: {
+        services: [{ name: "Haircut", durationMinutes: 30 }],
+        slotGranularityMinutes: 30,
+        bookingWindowDays: 14,
+      },
+    },
+  };
+  const compiled = compile(bookingDraft);
+  const entry = compiled.stateTable.BOOKING_SELECT_SERVICE;
+
+  assert.ok(entry, "expected BOOKING_SELECT_SERVICE in the compiled state table");
+  // business_info.hours uses grouped-range keys (e.g. mon_fri) — businessHours is the
+  // expanded, per-day form booking's handler actually looks up (see hours.test.ts).
+  const businessHours = entry?.handlerArgs.businessHours as Record<string, unknown>;
+  assert.equal(businessHours.monday, "9:00-19:00");
+  assert.equal(businessHours.friday, "9:00-19:00");
+  assert.deepEqual(entry?.handlerArgs.services, [{ name: "Haircut", durationMinutes: 30 }]);
 });
 
 test("selecting a primitive not yet in the registry is reported, not thrown", () => {

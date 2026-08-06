@@ -13,8 +13,10 @@
     "react-dom": "^19.0.0",
     "@supabase/ssr": "^0.5.0",
     "@supabase/supabase-js": "^2.45.0",
+    "@whatsapp-bot-platform/compiler": "workspace:*",
     "@whatsapp-bot-platform/db": "workspace:*",
     "@whatsapp-bot-platform/runtime": "workspace:*",
+    "@whatsapp-bot-platform/schema": "workspace:*",
     "@whatsapp-bot-platform/shared-types": "workspace:*"
   },
   "devDependencies": {

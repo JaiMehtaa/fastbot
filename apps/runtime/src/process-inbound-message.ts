@@ -73,7 +73,10 @@ async function runTurn(
     status: "received",
   });
 
-  const result = await interpret(context.compiledConfig, currentState, message.waId, message);
+  const result = await interpret(context.compiledConfig, currentState, message.waId, message, {
+    contextType: context.contextType,
+    contextId: context.contextId,
+  });
   if (!result.outboundPayload) {
     throw new Error("interpret() returned no outboundPayload — this should be unreachable, see interpreter.ts");
   }

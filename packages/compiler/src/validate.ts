@@ -11,6 +11,18 @@ export function validateDraft(draftConfig: DraftConfig): ValidationResult {
   const missingRequiredFields: MissingField[] = [];
   const issues: ValidationIssue[] = [];
 
+  // An empty selectedPrimitives trivially "passes" every loop below (nothing to
+  // iterate) — found live: an interview abandoned right after the first turn still
+  // has a draft_configs row (upserted every turn) that promoteDraftToTenant would
+  // otherwise happily promote into a live tenant with a totally empty root menu.
+  if (draftConfig.selectedPrimitives.length === 0) {
+    issues.push({
+      primitiveKey: "business_info",
+      message: "No capabilities have been selected yet — this draft isn't ready to promote to a live bot.",
+      severity: "error",
+    });
+  }
+
   for (const primitiveKey of draftConfig.selectedPrimitives) {
     if (!primitiveRegistry[primitiveKey]) {
       issues.push({

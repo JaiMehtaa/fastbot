@@ -2,6 +2,7 @@ import { createDbClient } from "@whatsapp-bot-platform/db";
 import { createMockBspAdapter } from "./bsp-adapter.js";
 import { createDbRepository } from "./db-repository.js";
 import { createInterpreter } from "./interpreter.js";
+import { runReminderSweep } from "./reminder-sweep.js";
 import { createServer } from "./server.js";
 
 /**
@@ -17,10 +18,12 @@ import { createServer } from "./server.js";
  * start.ts (real 360dialog + OpenAI-backed deps) is the production
  * entrypoint.
  */
+const repository = createDbRepository(createDbClient());
+const bspAdapter = createMockBspAdapter();
 const app = createServer({
-  repository: createDbRepository(createDbClient()),
-  bspAdapter: createMockBspAdapter(),
-  interpret: createInterpreter(async () => null),
+  repository,
+  bspAdapter,
+  interpret: createInterpreter(async () => null, repository),
   sandboxPhoneNumberId: process.env.SANDBOX_PHONE_NUMBER_ID ?? "dev-sandbox-phone-number-id",
   sandboxWhatsAppNumber: process.env.SANDBOX_WHATSAPP_NUMBER ?? "911234567890",
 });
@@ -36,3 +39,13 @@ app
     console.error("runtime failed to start:", error);
     process.exit(1);
   });
+
+// Same self-contained reminder sweep as start.ts, just against the mock BSP adapter — see
+// reminder-sweep.ts's docstring.
+const REMINDER_SWEEP_INTERVAL_MS = Number(process.env.REMINDER_SWEEP_INTERVAL_MS ?? 5 * 60_000);
+const REMINDER_WINDOW_MS = Number(process.env.REMINDER_WINDOW_MS ?? 30 * 60_000);
+setInterval(() => {
+  runReminderSweep(repository, bspAdapter, REMINDER_WINDOW_MS).catch((error: unknown) => {
+    console.error("reminder sweep failed:", error);
+  });
+}, REMINDER_SWEEP_INTERVAL_MS);

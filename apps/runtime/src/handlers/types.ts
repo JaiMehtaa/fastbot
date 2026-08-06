@@ -1,4 +1,4 @@
-import type { DashboardNotificationType, InboundMessage, StateTableEntry } from "@whatsapp-bot-platform/shared-types";
+import type { ConversationContextType, DashboardNotificationType, InboundMessage, StateTableEntry } from "@whatsapp-bot-platform/shared-types";
 import type { WhatsAppOutboundMessage } from "../whatsapp-payload.js";
 
 export interface HandlerInput {
@@ -6,6 +6,8 @@ export interface HandlerInput {
   currentState: string;
   message: InboundMessage;
   stateEntry: StateTableEntry;
+  /** which tenant/draft this conversation belongs to — most handlers ignore it; booking's needs it to scope its repository reads/writes */
+  context: { contextType: ConversationContextType; contextId: string };
 }
 
 export interface HandlerOutput {

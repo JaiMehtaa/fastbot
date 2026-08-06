@@ -30,8 +30,7 @@ interface SandboxResponse {
   error?: string;
 }
 
-const OPENING_MESSAGE =
-  "Hi! Tell me a bit about your business — what you sell, or the kind of support you'd like this bot to handle.";
+const OPENING_MESSAGE = "Hi! I'll help you set up your WhatsApp bot. First off, what's your name, and what's the best way to reach you?";
 
 const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "http://localhost:3003";
 

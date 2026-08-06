@@ -17,7 +17,30 @@ interface IssueSandboxRequestBody {
 
 interface PreviewMessageRequestBody {
   phoneNumberId?: string;
-  message?: InboundMessage;
+  message?: Partial<InboundMessage>;
+}
+
+const VALID_MESSAGE_TYPES = ["text", "interactive", "image", "video", "document", "audio", "sticker"];
+
+/**
+ * A missing waId/messageId/type used to reach insertChatHistory() and come
+ * back as a raw Postgres NOT NULL violation (e.g. `insertChatHistory: null
+ * value in column "message_id" violates not-null constraint`) — a client
+ * error leaking internal column/table names as a 500, discovered live by
+ * an automated test round. /webhook doesn't need this: parseWebhookPayload()
+ * already constructs a well-formed InboundMessage from Meta's real payload,
+ * or classifies the event as "ignored" — but /preview/message takes a
+ * caller-supplied message object directly, with nothing upstream guaranteeing its shape.
+ */
+function validateInboundMessage(message: Partial<InboundMessage> | undefined): string | null {
+  if (!message) return "message is required";
+  if (typeof message.waId !== "string" || !message.waId) return "message.waId is required";
+  if (typeof message.messageId !== "string" || !message.messageId) return "message.messageId is required";
+  if (typeof message.type !== "string" || !VALID_MESSAGE_TYPES.includes(message.type)) {
+    return `message.type must be one of: ${VALID_MESSAGE_TYPES.join(", ")}`;
+  }
+  if (typeof message.receivedAt !== "string" || !message.receivedAt) return "message.receivedAt is required";
+  return null;
 }
 
 /**
@@ -30,15 +53,6 @@ interface PreviewMessageRequestBody {
  */
 export function createServer(deps: ServerDeps): FastifyInstance {
   const app = Fastify({ logger: false });
-
-  // Server-lifetime, not per-request: createMockBspAdapter()'s messageId
-  // counter must keep incrementing across every preview request the same
-  // way it would for a real BspAdapter's whole server lifetime — chat_history
-  // has a real uniqueness constraint on message_id, so a fresh per-request
-  // adapter (counter always restarting at 1) collided on the second message
-  // ever sent to the same tenant. Each request slices off only the messages
-  // it added, so responses still stay scoped to that one request.
-  const previewBspAdapter = createMockBspAdapter();
 
   app.get("/health", async () => ({ status: "ok" }));
 
@@ -86,13 +100,27 @@ export function createServer(deps: ServerDeps): FastifyInstance {
   // webhook doesn't need that back, a preview UI does).
   app.post("/preview/message", async (request, reply) => {
     const body = request.body as PreviewMessageRequestBody;
-    if (!body?.phoneNumberId || !body?.message) {
-      return reply.code(400).send({ error: "phoneNumberId and message are required" });
+    if (!body?.phoneNumberId) {
+      return reply.code(400).send({ error: "phoneNumberId is required" });
+    }
+    const messageError = validateInboundMessage(body.message);
+    if (messageError) {
+      return reply.code(400).send({ error: messageError });
     }
 
-    const before = previewBspAdapter.sentMessages.length;
-    const result = await processInboundMessage(body.phoneNumberId, body.message, { ...deps, bspAdapter: previewBspAdapter });
-    return reply.code(200).send({ status: result.status, sentMessages: previewBspAdapter.sentMessages.slice(before) });
+    // A fresh adapter per request, not a shared server-lifetime singleton —
+    // createMockBspAdapter()'s messageId is a random UUID (see bsp-adapter.ts),
+    // not a counter that needs to keep incrementing, so nothing requires
+    // sharing one instance across requests. A shared instance's sentMessages
+    // array, sliced by [before, after) around each await, isn't actually
+    // request-isolated: two genuinely concurrent /preview/message calls could
+    // each read a slice containing the OTHER request's outbound message —
+    // found live via QA testing (two customers tapping the same booking slot
+    // at the same instant each saw both replies). A per-request adapter makes
+    // that structurally impossible.
+    const previewBspAdapter = createMockBspAdapter();
+    const result = await processInboundMessage(body.phoneNumberId, body.message as InboundMessage, { ...deps, bspAdapter: previewBspAdapter });
+    return reply.code(200).send({ status: result.status, sentMessages: previewBspAdapter.sentMessages });
   });
 
   return app;

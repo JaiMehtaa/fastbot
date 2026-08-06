@@ -10,6 +10,9 @@ Internal-only control plane, separately authenticated from customer accounts (`a
 
 Introduces no new core data model beyond `admin_accounts`; reads/writes the same tables as the rest of the system.
 
-**Status**: Next.js (App Router) skeleton — boots and builds, placeholder page + `/api/health`. None of the above is built yet.
+**Status**: prompt management is real and built — everything else on the list above is still a skeleton.
+
+- Auth: simple shared `ADMIN_PASSWORD` env var (see `lib/session.ts`), not the `admin_accounts` model described above — deliberately the fast/minimal option for solo-operator use today; `middleware.ts` gates every route except `/login`.
+- `/` — lists every entry in `packages/prompt-config`'s `PROMPT_REGISTRY` (the single source of truth for which LLM-call-site prompts exist, shared with `apps/interview-api` and `apps/runtime`) with its live effective value (override or default), lets you edit and save an override, or reset back to default. Edits take effect within the resolver's ~30s cache TTL, no redeploy. The FAQ fallback's mandatory grounding constraint ("only use what's in the tenant's FAQ list") is hardcoded in `apps/runtime`, not exposed here — this only edits optional tone guidance layered before it.
 
 See `/docs/architecture.md` for full system design.

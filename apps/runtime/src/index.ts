@@ -15,6 +15,8 @@ export type { ParsedWebhookEvent } from "./webhook-payload.js";
 export { processInboundMessage } from "./process-inbound-message.js";
 export type { ProcessInboundMessageDeps, ProcessInboundMessageResult } from "./process-inbound-message.js";
 export { promoteDraftToTenant, PromotionError } from "./promote-tenant.js";
+export { republishTenantConfig, RepublishError } from "./republish-tenant.js";
+export type { CreateTenantInput, RepublishTenantInput, TenantDetails } from "./repository.js";
 export { issueSandboxBinding, SandboxBindingError } from "./sandbox-binding.js";
 export type { IssueSandboxBindingOptions, SandboxBindingResult } from "./sandbox-binding.js";
 export type {

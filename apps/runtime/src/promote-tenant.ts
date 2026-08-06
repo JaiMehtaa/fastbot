@@ -32,5 +32,12 @@ export async function promoteDraftToTenant(
       ? draft.fieldValues.business_info.business_name
       : "New Business";
 
-  return repository.createTenant({ name: businessName, phoneNumberId, compiledConfig });
+  const result = await repository.createTenant({
+    name: businessName,
+    phoneNumberId,
+    compiledConfig,
+    sourceDraftSessionId: draft.draftSessionId,
+  });
+  await repository.markDraftSessionPromoted(draft.draftSessionId);
+  return result;
 }

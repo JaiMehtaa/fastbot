@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import type { PrimitiveFieldValues, PrimitiveKey } from "@whatsapp-bot-platform/shared-types";
 import { generateGroundTruthDraft } from "./ground-truth-generator.js";
 
+const MINIMAL_SUPPORT_PRIMITIVES: PrimitiveKey[] = ["business_info", "faq_support", "human_escalation"];
+
 const validValuesByPrimitive: Partial<Record<PrimitiveKey, PrimitiveFieldValues>> = {
   business_info: {
     business_name: "Meadow Soaps",
@@ -20,6 +22,7 @@ const validValuesByPrimitive: Partial<Record<PrimitiveKey, PrimitiveFieldValues>
 test("generates a valid draft on the first attempt when generateFieldValues always succeeds", async () => {
   let calls = 0;
   const draft = await generateGroundTruthDraft({
+    selectedPrimitives: MINIMAL_SUPPORT_PRIMITIVES,
     lobKey: "minimal_support",
     generateFieldValues: async ({ primitiveKey }) => {
       calls += 1;
@@ -32,9 +35,20 @@ test("generates a valid draft on the first attempt when generateFieldValues alwa
   assert.deepEqual([...draft.selectedPrimitives].sort(), ["business_info", "faq_support", "human_escalation"]);
 });
 
+test("generates a valid draft for an arbitrary primitive set, with no lobKey at all", async () => {
+  const draft = await generateGroundTruthDraft({
+    selectedPrimitives: ["business_info", "human_escalation"],
+    generateFieldValues: async ({ primitiveKey }) => validValuesByPrimitive[primitiveKey] ?? {},
+  });
+
+  assert.equal(draft.lobKey, null);
+  assert.deepEqual([...draft.selectedPrimitives].sort(), ["business_info", "human_escalation"]);
+});
+
 test("retries a single primitive up to maxAttemptsPerPrimitive and succeeds once valid values arrive", async () => {
   let faqAttempts = 0;
   const draft = await generateGroundTruthDraft({
+    selectedPrimitives: MINIMAL_SUPPORT_PRIMITIVES,
     lobKey: "minimal_support",
     maxAttemptsPerPrimitive: 3,
     generateFieldValues: async ({ primitiveKey }) => {
@@ -55,6 +69,7 @@ test("throws a clear error after exhausting attempts for a primitive that never 
   await assert.rejects(
     () =>
       generateGroundTruthDraft({
+        selectedPrimitives: MINIMAL_SUPPORT_PRIMITIVES,
         lobKey: "minimal_support",
         maxAttemptsPerPrimitive: 2,
         generateFieldValues: async ({ primitiveKey }) => {
@@ -71,6 +86,7 @@ test("passes the previous attempt's validation feedback into the next retry", as
   const seenReasons: (string | undefined)[] = [];
 
   await generateGroundTruthDraft({
+    selectedPrimitives: MINIMAL_SUPPORT_PRIMITIVES,
     lobKey: "minimal_support",
     maxAttemptsPerPrimitive: 3,
     generateFieldValues: async ({ primitiveKey, previousAttempts }) => {
@@ -89,13 +105,11 @@ test("passes the previous attempt's validation feedback into the next retry", as
   assert.match(seenReasons[1] ?? "", /missing field/); // second attempt: told why the first failed
 });
 
-test("throws on an unknown lobKey", async () => {
-  await assert.rejects(
-    () =>
-      generateGroundTruthDraft({
-        lobKey: "not_a_real_recipe",
-        generateFieldValues: async () => ({}),
-      }),
-    /Unknown lob_recipe/,
+test("throws when a selected primitive isn't in the registry, rather than silently dropping it", async () => {
+  await assert.rejects(() =>
+    generateGroundTruthDraft({
+      selectedPrimitives: ["order_management"],
+      generateFieldValues: async () => ({}),
+    }),
   );
 });

@@ -37,6 +37,21 @@ test("validateField rejects wrong type for a string field", () => {
   assert.equal(issues[0]?.severity, "error");
 });
 
+test("validateField rejects a negative number", () => {
+  const field: FieldDefinition = {
+    key: "price",
+    label: "Price",
+    type: "number",
+    required: false,
+    interviewHint: "?",
+  };
+  const issues = validateField(field, -50);
+  assert.equal(issues.length, 1);
+  assert.match(issues[0]?.message ?? "", /must not be negative/);
+  assert.deepEqual(validateField(field, 0), []);
+  assert.deepEqual(validateField(field, 50), []);
+});
+
 test("validateField rejects an invalid URL", () => {
   const field: FieldDefinition = {
     key: "website",

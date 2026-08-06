@@ -1,8 +1,9 @@
 import { createDbClient } from "@whatsapp-bot-platform/db";
 import { createOpenAiClient } from "@whatsapp-bot-platform/eval";
+import { createPromptTemplateResolver } from "@whatsapp-bot-platform/prompt-config";
 import { createDbRepository } from "./db-repository.js";
 import { createInterpreter } from "./interpreter.js";
-import { createLlmFaqFallback } from "./llm-faq-fallback.js";
+import { createLlmFaqFallback, DEFAULT_FAQ_FALLBACK_GUIDANCE, FAQ_FALLBACK_PROMPT_KEY } from "./llm-faq-fallback.js";
 import type { ServerDeps } from "./server.js";
 import { createThreeSixtyDialogAdapter } from "./three-sixty-dialog-adapter.js";
 
@@ -24,9 +25,11 @@ export function createProductionDeps(config: {
   threeSixtyDialogApiKey?: string;
 }): ServerDeps {
   const client = createOpenAiClient({ apiKey: config.openAiApiKey });
-  const repository = createDbRepository(createDbClient());
+  const db = createDbClient();
+  const repository = createDbRepository(db);
   const bspAdapter = createThreeSixtyDialogAdapter({ apiKey: config.threeSixtyDialogApiKey });
-  const interpret = createInterpreter(createLlmFaqFallback(client));
+  const getGuidance = createPromptTemplateResolver(db, FAQ_FALLBACK_PROMPT_KEY, DEFAULT_FAQ_FALLBACK_GUIDANCE);
+  const interpret = createInterpreter(createLlmFaqFallback(client, { getGuidance }), repository);
 
   return {
     repository,

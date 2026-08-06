@@ -1,0 +1,21 @@
+{
+  "name": "@whatsapp-bot-platform/synthetic-gen-cli",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "run": "node dist/run.js"
+  },
+  "dependencies": {
+    "@whatsapp-bot-platform/shared-types": "workspace:*",
+    "@whatsapp-bot-platform/schema": "workspace:*",
+    "@whatsapp-bot-platform/eval": "workspace:*",
+    "@whatsapp-bot-platform/interview-api": "workspace:*",
+    "@whatsapp-bot-platform/synthetic-gen": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "@types/node": "^26.1.1"
+  }
+}

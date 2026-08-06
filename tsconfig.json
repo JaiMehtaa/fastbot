@@ -7,8 +7,10 @@
     { "path": "packages/eval" },
     { "path": "packages/synthetic-gen" },
     { "path": "packages/db" },
+    { "path": "packages/prompt-config" },
     { "path": "apps/runtime" },
     { "path": "apps/interview-api" },
-    { "path": "tools/e2e-demo" }
+    { "path": "tools/e2e-demo" },
+    { "path": "tools/synthetic-gen-cli" }
   ]
 }

@@ -63,3 +63,24 @@ test("treats a malformed judge response as zero confidence rather than throwing"
   const result = await fallback("are your soaps vegan?", FAQS);
   assert.equal(result, null);
 });
+
+test("admin-provided guidance is included, but the FAQ-grounding safety constraint is always present regardless — proves it can't be overridden away", async () => {
+  let answerPrompt: string | undefined;
+  let calls = 0;
+  const client: OpenAiClient = {
+    chat: async (options) => {
+      calls += 1;
+      if (calls === 1) {
+        answerPrompt = options.messages[0]?.content;
+        return { content: "Yes, vegan." };
+      }
+      return { content: JSON.stringify({ confidence: 0.95 }) };
+    },
+  };
+  const fallback = createLlmFaqFallback(client, { getGuidance: async () => "Always answer in a cheerful tone." });
+  await fallback("are your soaps vegan?", FAQS);
+
+  assert.match(answerPrompt ?? "", /Always answer in a cheerful tone\./);
+  assert.match(answerPrompt ?? "", /Answer using ONLY the information in the FAQ list below/);
+  assert.match(answerPrompt ?? "", /NOT_COVERED/);
+});

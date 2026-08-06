@@ -1,8 +1,25 @@
 import { generateWithConfidence, type OpenAiClient } from "@whatsapp-bot-platform/eval";
+import { PROMPT_REGISTRY, type PromptResolverFn } from "@whatsapp-bot-platform/prompt-config";
 import type { FaqFallbackFn } from "./handlers/faq-support.js";
 
 export const DEFAULT_FAQ_ANSWER_MODEL = "gpt-4o-mini";
 export const DEFAULT_FAQ_JUDGE_MODEL = "gpt-4o-mini";
+
+export const FAQ_FALLBACK_PROMPT_KEY = "faq_fallback_guidance";
+
+/**
+ * Re-exported from packages/prompt-config's PROMPT_REGISTRY (empty by
+ * default) — optional tone/style guidance only (e.g. "keep answers under
+ * two sentences," "always end with an emoji"), placed BEFORE the hardcoded
+ * grounding constraint below so that constraint stays the most recent,
+ * most prominent instruction in the prompt. It is deliberately NOT
+ * possible to override or remove the grounding rule through this — this
+ * is the highest-stakes LLM call site in the system (see the docstring on
+ * createLlmFaqFallback below) and admin prompt customization must not be
+ * able to defeat the one thing standing between the model and inventing
+ * an answer to a real customer.
+ */
+export const DEFAULT_FAQ_FALLBACK_GUIDANCE = PROMPT_REGISTRY.faq_fallback_guidance.default;
 
 const GROUNDEDNESS_THRESHOLD = 0.7;
 const MAX_ATTEMPTS = 2;
@@ -21,8 +38,10 @@ async function generateAnswer(
   model: string,
   question: string,
   faqs: readonly Faq[],
+  guidance: string,
   feedback?: string,
 ): Promise<string> {
+  const guidanceNote = guidance.trim() ? `${guidance.trim()}\n\n` : "";
   const feedbackNote = feedback
     ? `\n\nYour previous attempt was rejected: ${feedback}. Answer again, staying strictly within the FAQ content.`
     : "";
@@ -32,7 +51,7 @@ async function generateAnswer(
       {
         role: "user",
         content:
-          `A customer asked a WhatsApp bot a question. Answer using ONLY the information in the FAQ list below — ` +
+          `${guidanceNote}A customer asked a WhatsApp bot a question. Answer using ONLY the information in the FAQ list below — ` +
           `never add facts, policies, or details that aren't stated there. If the FAQs don't cover this question ` +
           `at all, respond with exactly: NOT_COVERED.\n\nFAQs:\n${formatFaqs(faqs)}\n\n` +
           `Customer's question: "${question}"${feedbackNote}`,
@@ -100,18 +119,20 @@ async function judgeGroundedness(
  */
 export function createLlmFaqFallback(
   client: OpenAiClient,
-  options: { answerModel?: string; judgeModel?: string } = {},
+  options: { answerModel?: string; judgeModel?: string; getGuidance?: PromptResolverFn } = {},
 ): FaqFallbackFn {
   const answerModel = options.answerModel ?? DEFAULT_FAQ_ANSWER_MODEL;
   const judgeModel = options.judgeModel ?? DEFAULT_FAQ_JUDGE_MODEL;
+  const getGuidance = options.getGuidance ?? (async () => DEFAULT_FAQ_FALLBACK_GUIDANCE);
 
   return async function llmFaqFallback(question, faqs) {
     if (faqs.length === 0) return null;
+    const guidance = await getGuidance();
 
     const result = await generateWithConfidence<string>({
       generate: async ({ attempt, previousAttempts }) => {
         const feedback = previousAttempts[previousAttempts.length - 1]?.reason;
-        const answer = await generateAnswer(client, answerModel, question, faqs, attempt > 1 ? feedback : undefined);
+        const answer = await generateAnswer(client, answerModel, question, faqs, guidance, attempt > 1 ? feedback : undefined);
         return { output: answer, confidence: 0 };
       },
       score: async (answer) => {

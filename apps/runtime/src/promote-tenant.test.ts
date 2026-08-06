@@ -28,6 +28,19 @@ test("promoteDraftToTenant creates a tenant servable by phone_number_id", async 
   assert.equal(lookup?.compiledConfig.rootMenu.entries.length, 3);
 });
 
+test("promoteDraftToTenant records the draft session id so the dashboard editor can find its way back to it", async () => {
+  const repository = createInMemoryRepository();
+  const { tenantId } = await promoteDraftToTenant(validMinimalDraft(), "demo-phone-number", repository);
+  const details = await repository.getTenantById(tenantId);
+  assert.equal(details?.sourceDraftSessionId, "draft-promote-1");
+});
+
+test("promoteDraftToTenant marks the draft session as promoted", async () => {
+  const repository = createInMemoryRepository();
+  await promoteDraftToTenant(validMinimalDraft(), "demo-phone-number", repository);
+  assert.equal(repository.draftSessionStatuses.get("draft-promote-1"), "promoted");
+});
+
 test("promoteDraftToTenant uses the business_name from field_values as the tenant name", async () => {
   const repository = createInMemoryRepository();
   await promoteDraftToTenant(validMinimalDraft(), "demo-phone-number", repository);

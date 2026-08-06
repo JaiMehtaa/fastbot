@@ -17,6 +17,12 @@ importers:
 
   apps/admin:
     dependencies:
+      '@whatsapp-bot-platform/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@whatsapp-bot-platform/prompt-config':
+        specifier: workspace:*
+        version: link:../../packages/prompt-config
       next:
         specifier: ^15.0.0
         version: 15.5.20(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -27,6 +33,9 @@ importers:
         specifier: ^19.0.0
         version: 19.2.7(react@19.2.7)
     devDependencies:
+      '@tailwindcss/postcss':
+        specifier: ^4.0.0
+        version: 4.3.3
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.1
@@ -36,6 +45,9 @@ importers:
       '@types/react-dom':
         specifier: ^19.0.0
         version: 19.2.3(@types/react@19.2.17)
+      tailwindcss:
+        specifier: ^4.0.0
+        version: 4.3.3
       typescript:
         specifier: ^5.6.0
         version: 5.9.3
@@ -48,12 +60,18 @@ importers:
       '@supabase/supabase-js':
         specifier: ^2.45.0
         version: 2.110.7
+      '@whatsapp-bot-platform/compiler':
+        specifier: workspace:*
+        version: link:../../packages/compiler
       '@whatsapp-bot-platform/db':
         specifier: workspace:*
         version: link:../../packages/db
       '@whatsapp-bot-platform/runtime':
         specifier: workspace:*
         version: link:../runtime
+      '@whatsapp-bot-platform/schema':
+        specifier: workspace:*
+        version: link:../../packages/schema
       '@whatsapp-bot-platform/shared-types':
         specifier: workspace:*
         version: link:../../packages/shared-types
@@ -97,6 +115,9 @@ importers:
       '@whatsapp-bot-platform/eval':
         specifier: workspace:*
         version: link:../../packages/eval
+      '@whatsapp-bot-platform/prompt-config':
+        specifier: workspace:*
+        version: link:../../packages/prompt-config
       '@whatsapp-bot-platform/schema':
         specifier: workspace:*
         version: link:../../packages/schema
@@ -125,6 +146,9 @@ importers:
       '@whatsapp-bot-platform/eval':
         specifier: workspace:*
         version: link:../../packages/eval
+      '@whatsapp-bot-platform/prompt-config':
+        specifier: workspace:*
+        version: link:../../packages/prompt-config
       '@whatsapp-bot-platform/schema':
         specifier: workspace:*
         version: link:../../packages/schema
@@ -216,6 +240,19 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
+  packages/prompt-config:
+    dependencies:
+      '@whatsapp-bot-platform/db':
+        specifier: workspace:*
+        version: link:../db
+    devDependencies:
+      '@types/node':
+        specifier: ^26.1.1
+        version: 26.1.1
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
   packages/schema:
     dependencies:
       '@whatsapp-bot-platform/shared-types':
@@ -274,6 +311,31 @@ importers:
       '@whatsapp-bot-platform/shared-types':
         specifier: workspace:*
         version: link:../../packages/shared-types
+    devDependencies:
+      '@types/node':
+        specifier: ^26.1.1
+        version: 26.1.1
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
+  tools/synthetic-gen-cli:
+    dependencies:
+      '@whatsapp-bot-platform/eval':
+        specifier: workspace:*
+        version: link:../../packages/eval
+      '@whatsapp-bot-platform/interview-api':
+        specifier: workspace:*
+        version: link:../../apps/interview-api
+      '@whatsapp-bot-platform/schema':
+        specifier: workspace:*
+        version: link:../../packages/schema
+      '@whatsapp-bot-platform/shared-types':
+        specifier: workspace:*
+        version: link:../../packages/shared-types
+      '@whatsapp-bot-platform/synthetic-gen':
+        specifier: workspace:*
+        version: link:../../packages/synthetic-gen
     devDependencies:
       '@types/node':
         specifier: ^26.1.1

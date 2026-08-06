@@ -1,9 +1,21 @@
 import { getPrimitive } from "@whatsapp-bot-platform/schema";
 import type { OpenAiClient } from "@whatsapp-bot-platform/eval";
+import { PROMPT_REGISTRY, type PromptResolverFn } from "@whatsapp-bot-platform/prompt-config";
 import type { FieldDefinition, MissingField } from "@whatsapp-bot-platform/shared-types";
 import type { ExtractFieldsFn, FieldExtraction } from "./field-extractor.js";
 
 export const DEFAULT_EXTRACTOR_MODEL = "gpt-4o-mini";
+
+export const EXTRACTOR_PROMPT_KEY = "field_extractor";
+
+/**
+ * Re-exported from packages/prompt-config's PROMPT_REGISTRY. The editable
+ * framing — field descriptions and the JSON output-format instructions in
+ * buildPrompt() below stay code-generated and are always appended, since
+ * the response must keep matching the shape createLlmExtractFields'
+ * parsing (and hasValidShape's per-field checks) expects.
+ */
+export const DEFAULT_EXTRACTOR_INSTRUCTIONS = PROMPT_REGISTRY.field_extractor.default;
 
 function findFieldDefinition(missingField: MissingField): FieldDefinition | undefined {
   const schema = getPrimitive(missingField.primitiveKey);
@@ -21,19 +33,26 @@ function describeField(missingField: MissingField, field: FieldDefinition): stri
     parts.push(`  value must be an array of objects shaped { ${shape} }`);
   }
   if (field.type === "weekly_hours") {
-    parts.push('  value must be an object like { "monday": "9am-6pm" } or { "note": "closed on Sundays" }');
+    parts.push(
+      '  value must be an object with ONE KEY PER DAY actually covered by the answer (monday, tuesday, wednesday, ' +
+        "thursday, friday, saturday, sunday) — expand a range or 'every day' into one entry per day, do NOT " +
+        'collapse multiple days into a single key. Example for "Mon-Sat 9am-6pm, closed Sundays": { "monday": ' +
+        '"9am-6pm", "tuesday": "9am-6pm", "wednesday": "9am-6pm", "thursday": "9am-6pm", "friday": "9am-6pm", ' +
+        '"saturday": "9am-6pm", "sunday": "closed" }. If no specific days are named at all, use { "note": "<verbatim answer>" } instead.',
+    );
   }
   parts.push(`  what we're asking the business: ${field.interviewHint}`);
   return parts.join("\n");
 }
 
-function buildPrompt(freeText: string, fields: readonly { missingField: MissingField; def: FieldDefinition }[]): string {
+function buildPrompt(
+  instructions: string,
+  freeText: string,
+  fields: readonly { missingField: MissingField; def: FieldDefinition }[],
+): string {
   const fieldDescriptions = fields.map(({ missingField, def }) => describeField(missingField, def)).join("\n");
   return (
-    `A business owner is being interviewed to set up a WhatsApp bot. Extract answers to any of the ` +
-    `following fields that their latest message actually addresses — a single message can answer more than ` +
-    `one field at once. Do NOT include a field in your response if the message doesn't address it; do NOT ` +
-    `guess or invent a value.\n\nFields still needed:\n${fieldDescriptions}\n\n` +
+    `${instructions}\n\nFields still needed:\n${fieldDescriptions}\n\n` +
     `Business owner's message: "${freeText}"\n\n` +
     `Respond with ONLY JSON (no markdown, no prose): {"extractions": [...]}, where "extractions" is an array ` +
     `with one object per field you could confidently extract: {"primitiveKey": "...", "fieldKey": "...", ` +
@@ -86,16 +105,21 @@ function hasValidShape(value: unknown, def: FieldDefinition): boolean {
  * value's shape against the field's declared type and drops anything
  * malformed, rather than trusting the model's JSON at face value.
  */
-export function createLlmExtractFields(client: OpenAiClient, model: string = DEFAULT_EXTRACTOR_MODEL): ExtractFieldsFn {
+export function createLlmExtractFields(
+  client: OpenAiClient,
+  getInstructions: PromptResolverFn = async () => DEFAULT_EXTRACTOR_INSTRUCTIONS,
+  model: string = DEFAULT_EXTRACTOR_MODEL,
+): ExtractFieldsFn {
   return async function llmExtractFields({ freeText, missingFields }): Promise<readonly FieldExtraction[]> {
     const resolved = missingFields
       .map((missingField) => ({ missingField, def: findFieldDefinition(missingField) }))
       .filter((f): f is { missingField: MissingField; def: FieldDefinition } => f.def !== undefined);
     if (resolved.length === 0) return [];
 
+    const instructions = await getInstructions();
     const response = await client.chat({
       model,
-      messages: [{ role: "user", content: buildPrompt(freeText, resolved) }],
+      messages: [{ role: "user", content: buildPrompt(instructions, freeText, resolved) }],
       temperature: 0,
       responseFormat: { type: "json_object" },
     });

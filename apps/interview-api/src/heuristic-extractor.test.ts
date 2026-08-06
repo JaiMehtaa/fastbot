@@ -93,6 +93,15 @@ test("extracts a catalogue item from a bare URL with no path, deriving a name fr
   assert.match(value[0]!.name, /example/i);
 });
 
+test("strips the trailing separator comma left over after removing the URL from 'Name, URL'", async () => {
+  const result = await heuristicExtractFields({
+    freeText: "Lavender Oatmeal Bar, https://meadowsoaps.example/lavender",
+    missingFields: missing("catalogue", "items"),
+  });
+  const value = result[0]?.value as Array<{ name: string; link: string }>;
+  assert.equal(value[0]!.name, "Lavender Oatmeal Bar");
+});
+
 test("does not extract a catalogue item when there's no URL in the message", async () => {
   const result = await heuristicExtractFields({
     freeText: "we sell handmade soap, lavender scent",

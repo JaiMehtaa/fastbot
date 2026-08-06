@@ -26,7 +26,12 @@ test("db-session-store: set() then get() round-trips every field of InterviewSes
   await store.set(draftSessionId, {
     draftSessionId,
     lobKey: "retail_d2c",
-    lobAmbiguityAsked: true,
+    interviewStage: "awaiting_more",
+    ownerName: "Jai",
+    ownerContact: "jai@example.com",
+    ownerInfoAsked: true,
+    capabilityAmbiguityAsked: true,
+    pendingPrimitives: ["catalogue"],
     selectedPrimitives: ["business_info", "catalogue", "faq_support", "human_escalation"],
     fieldValues: { business_info: { business_name: "Meadow Soaps" } },
     confirmed: false,
@@ -34,7 +39,12 @@ test("db-session-store: set() then get() round-trips every field of InterviewSes
 
   const state = await store.get(draftSessionId);
   assert.equal(state?.lobKey, "retail_d2c");
-  assert.equal(state?.lobAmbiguityAsked, true);
+  assert.equal(state?.interviewStage, "awaiting_more");
+  assert.equal(state?.ownerName, "Jai");
+  assert.equal(state?.ownerContact, "jai@example.com");
+  assert.equal(state?.ownerInfoAsked, true);
+  assert.equal(state?.capabilityAmbiguityAsked, true);
+  assert.deepEqual(state?.pendingPrimitives, ["catalogue"]);
   assert.deepEqual(state?.selectedPrimitives, ["business_info", "catalogue", "faq_support", "human_escalation"]);
   assert.deepEqual(state?.fieldValues, { business_info: { business_name: "Meadow Soaps" } });
   assert.equal(state?.confirmed, false);
@@ -48,7 +58,12 @@ test("db-session-store: repeated set() calls update the same session in place, n
   await store.set(draftSessionId, {
     draftSessionId,
     lobKey: null,
-    lobAmbiguityAsked: false,
+    interviewStage: "owner_info",
+    ownerName: null,
+    ownerContact: null,
+    ownerInfoAsked: false,
+    capabilityAmbiguityAsked: false,
+    pendingPrimitives: null,
     selectedPrimitives: [],
     fieldValues: {},
     confirmed: false,
@@ -56,7 +71,12 @@ test("db-session-store: repeated set() calls update the same session in place, n
   await store.set(draftSessionId, {
     draftSessionId,
     lobKey: "minimal_support",
-    lobAmbiguityAsked: false,
+    interviewStage: "locked",
+    ownerName: "Jai",
+    ownerContact: "jai@example.com",
+    ownerInfoAsked: true,
+    capabilityAmbiguityAsked: false,
+    pendingPrimitives: null,
     selectedPrimitives: ["business_info", "faq_support", "human_escalation"],
     fieldValues: { business_info: { business_name: "Test Co" } },
     confirmed: true,

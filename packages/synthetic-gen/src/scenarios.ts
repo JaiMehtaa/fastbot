@@ -101,4 +101,65 @@ export const curatedScenarios: readonly CuratedScenario[] = [
     expectedBehavior:
       "catalogue.items[0].link is not derivable from the material alone — the interview should ask for a store/product link before accepting the item as complete, per the field's `required: true` in packages/schema.",
   },
+  {
+    key: "booking_without_stated_hours",
+    description:
+      "A salon that clearly wants appointment booking but never states operating hours — booking's cross-primitive dependency on business_info.hours (packages/compiler's validateDraft) should surface as a specific missing field, not get silently skipped or conflated with a generic prompt.",
+    groundTruth: {
+      draftSessionId: "scenario-booking-without-hours",
+      version: 1,
+      lobKey: "salon_spa",
+      selectedPrimitives: ["business_info", "booking", "human_escalation"],
+      fieldValues: {
+        business_info: {
+          business_name: "Glow Hair Studio",
+          description: "A neighborhood hair salon offering cuts, color, and styling by appointment.",
+          hours: { mon_sat: "10:00-19:00", sun: "closed" },
+        },
+        booking: {
+          services: [
+            { name: "Haircut", durationMinutes: 45, price: 600 },
+            { name: "Color & Style", durationMinutes: 120, price: 2500 },
+          ],
+          slotGranularityMinutes: 30,
+          bookingWindowDays: 14,
+        },
+        human_escalation: {
+          escalation_prompt: "We'll get back to you shortly to sort that out.",
+        },
+      },
+    },
+    material:
+      "People can book a haircut or color appointment with us, takes about 45 minutes for a cut or a couple hours for color. We don't really have a website or anything, they just message us.",
+    expectedBehavior:
+      "booking should be selected from 'book/appointment' language; business_info.hours is never mentioned in the material and must still be asked for explicitly — the interview cannot let booking be marked complete without it.",
+  },
+  {
+    key: "lead_capture_no_catalogue",
+    description:
+      "A consultancy that only wants to capture interested visitors' contact details, not sell a product list — classification should select lead_capture without dragging in catalogue or faq_support just because 'consultancy'/'design' language is present.",
+    groundTruth: {
+      draftSessionId: "scenario-lead-capture-no-catalogue",
+      version: 1,
+      lobKey: "custom",
+      selectedPrimitives: ["business_info", "lead_capture", "human_escalation"],
+      fieldValues: {
+        business_info: {
+          business_name: "Vertex Interior Consultants",
+          description: "We design and plan home interiors for apartments and villas.",
+          hours: { mon_fri: "10:00-18:00", sat: "10:00-14:00", sun: "closed" },
+        },
+        lead_capture: {
+          capture_prompt: "Leave your name, phone number, and a bit about your space, and our design team will reach out.",
+        },
+        human_escalation: {
+          escalation_prompt: "We'll connect you with a designer shortly.",
+        },
+      },
+    },
+    material:
+      "We're an interior design consultancy — we don't sell products directly, we just want people who are interested to leave their number so our design team can call them back.",
+    expectedBehavior:
+      "lead_capture should be selected from 'leave their number'/'call them back' language; catalogue and faq_support should NOT be selected just because the material mentions 'design' and 'services' — there's no product list or FAQ content here, only a callback request.",
+  },
 ];

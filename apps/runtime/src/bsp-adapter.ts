@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { WhatsAppOutboundMessage } from "./whatsapp-payload.js";
 
 export interface SendResult {
@@ -21,16 +22,23 @@ export interface MockBspAdapter extends BspAdapter {
   readonly sentMessages: readonly WhatsAppOutboundMessage[];
 }
 
+/**
+ * messageId is a random UUID, not a sequential per-instance counter — a
+ * counter restarting at 1 every process lifetime collided with rows
+ * already sitting in chat_history's real (context_type, context_id,
+ * message_id) uniqueness constraint from a *previous* process's outbound
+ * messages to the same tenant, since createDbRepository persists across
+ * restarts even though this mock adapter doesn't. Found live by restarting
+ * apps/runtime's dev server against a real, already-used tenant.
+ */
 export function createMockBspAdapter(): MockBspAdapter {
   const sentMessages: WhatsAppOutboundMessage[] = [];
-  let counter = 0;
 
   return {
     sentMessages,
     async send(message) {
       sentMessages.push(message);
-      counter += 1;
-      return { messageId: `mock-msg-${counter}` };
+      return { messageId: `mock-msg-${randomUUID()}` };
     },
   };
 }

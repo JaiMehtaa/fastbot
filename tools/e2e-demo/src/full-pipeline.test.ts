@@ -2,10 +2,12 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   createInitialState,
-  heuristicClassifyLob,
+  heuristicClassifyCapabilities,
   heuristicExtractFields,
+  heuristicExtractOwnerInfo,
   processTurn,
   type InterviewSessionState,
+  type ScrapeWebsiteFn,
 } from "@whatsapp-bot-platform/interview-api";
 import {
   createInMemoryRepository,
@@ -22,8 +24,22 @@ import type { DraftConfig } from "@whatsapp-bot-platform/shared-types";
 const DEMO_PHONE_NUMBER = "demo-phone-number-1";
 const DEMO_WA_ID = "919999999999";
 
+// The interview never touches the real network in this offline e2e suite —
+// the script always declines the website step, so this is never actually
+// called, but InterviewDeps requires a scrapeFn regardless.
+const noScrape: ScrapeWebsiteFn = async () => ({ status: "unreachable", reason: "no scraping in this offline e2e suite" });
+
+// Full stage sequence (apps/interview-api/src/interview-session.ts):
+// owner_info -> detecting -> awaiting_more (one "anything else?" catch-all)
+// -> awaiting_website -> locked. The first line answers owner_info; the
+// third answers the catch-all ("questions" is heuristicClassifyCapabilities'
+// faq_support keyword, so the locked set ends up {business_info, catalogue,
+// faq_support, human_escalation}); the fourth declines the website step.
 const INTERVIEW_SCRIPT = [
+  "I'm Meadow, you can reach me at meadow@example.com",
   "I sell handmade soaps and skincare products online",
+  "Yes, we also get a lot of questions from customers",
+  "no website",
   "We're called Meadow Soaps",
   "We make natural handmade soaps using organic ingredients",
   "We're open 9am-6pm Monday to Friday",
@@ -46,7 +62,7 @@ interface Ran {
  */
 async function runScriptedInterview(script: readonly string[] = INTERVIEW_SCRIPT): Promise<Ran> {
   let state: InterviewSessionState = createInitialState(`e2e-demo-${Math.random().toString(36).slice(2)}`);
-  const deps = { classifyFn: heuristicClassifyLob, extractFn: heuristicExtractFields };
+  const deps = { classifyFn: heuristicClassifyCapabilities, extractFn: heuristicExtractFields, extractOwnerInfoFn: heuristicExtractOwnerInfo, scrapeFn: noScrape };
   const turns: Ran["turns"] = [];
   for (const message of script) {
     const result = await processTurn(state, message, deps);
@@ -61,7 +77,7 @@ function failureContext(ran: Ran, state: InterviewSessionState): string {
 }
 
 async function runInterviewToCompletion(): Promise<{ draft: DraftConfig; state: InterviewSessionState; ran: Ran }> {
-  const deps = { classifyFn: heuristicClassifyLob, extractFn: heuristicExtractFields };
+  const deps = { classifyFn: heuristicClassifyCapabilities, extractFn: heuristicExtractFields, extractOwnerInfoFn: heuristicExtractOwnerInfo, scrapeFn: noScrape };
   const ran = await runScriptedInterview();
   let state = ran.state;
   assert.equal(state.lobKey, "retail_d2c", failureContext(ran, state));
@@ -100,7 +116,7 @@ test("full pipeline: scripted interview -> promoted tenant -> real WhatsApp conv
   const { repository } = await buildPromotedTenant();
 
   const bspAdapter = createMockBspAdapter();
-  const interpret = createInterpreter(async () => null);
+  const interpret = createInterpreter(async () => null, repository);
   const runtimeDeps = { repository, bspAdapter, interpret, sandboxPhoneNumberId: "unused-sandbox-number" };
 
   const greeting = await processInboundMessage(
@@ -132,7 +148,7 @@ test("full pipeline: scripted interview -> promoted tenant -> real WhatsApp conv
 test("runtime: unrecognized root-menu tap falls back to the root menu instead of erroring", async () => {
   const { repository } = await buildPromotedTenant("demo-phone-number-2");
   const bspAdapter = createMockBspAdapter();
-  const interpret = createInterpreter(async () => null);
+  const interpret = createInterpreter(async () => null, repository);
   const runtimeDeps = { repository, bspAdapter, interpret, sandboxPhoneNumberId: "unused-sandbox-number" };
   const waId = "919999999901";
 
@@ -151,7 +167,7 @@ test("runtime: unrecognized root-menu tap falls back to the root menu instead of
 test("runtime: FAQ tap returns the canned answer and back-to-list re-renders the list", async () => {
   const { repository } = await buildPromotedTenant("demo-phone-number-3");
   const bspAdapter = createMockBspAdapter();
-  const interpret = createInterpreter(async () => null);
+  const interpret = createInterpreter(async () => null, repository);
   const runtimeDeps = { repository, bspAdapter, interpret, sandboxPhoneNumberId: "unused-sandbox-number" };
   const waId = "919999999902";
 
@@ -195,7 +211,7 @@ test("runtime: an unmatched free-text question hands off to human escalation and
   const { repository, tenantId } = await buildPromotedTenant("demo-phone-number-4");
   const bspAdapter = createMockBspAdapter();
   // fallback always returns null here -> every free-text FAQ question is "low confidence"
-  const interpret = createInterpreter(async () => null);
+  const interpret = createInterpreter(async () => null, repository);
   const runtimeDeps = { repository, bspAdapter, interpret, sandboxPhoneNumberId: "unused-sandbox-number" };
   const waId = "919999999903";
 
@@ -232,10 +248,11 @@ test("runtime: an unmatched free-text question hands off to human escalation and
 });
 
 test("interview: a garbage answer to a required field is not committed and the same question is asked again", async () => {
-  const deps = { classifyFn: heuristicClassifyLob, extractFn: heuristicExtractFields };
-  // stop right after LOB lock + business_name, right when hours is being asked, then
-  // answer with noise that heuristicExtractFields' weekly_hours matcher can't parse
-  const ran = await runScriptedInterview(INTERVIEW_SCRIPT.slice(0, 3));
+  const deps = { classifyFn: heuristicClassifyCapabilities, extractFn: heuristicExtractFields, extractOwnerInfoFn: heuristicExtractOwnerInfo, scrapeFn: noScrape };
+  // stop right after owner_info + capability lock + website decline + business_name +
+  // description, right when hours is being asked, then answer with noise that
+  // heuristicExtractFields' weekly_hours matcher can't parse
+  const ran = await runScriptedInterview(INTERVIEW_SCRIPT.slice(0, 6));
   let state = ran.state;
   const beforeFieldValues = JSON.stringify(state.fieldValues);
 
@@ -269,7 +286,7 @@ test("sandbox pipeline: scripted interview -> sandbox join token -> real WhatsAp
   assert.match(joinUrl, new RegExp(`^https://wa\\.me/${SANDBOX_WHATSAPP_NUMBER}\\?text=`));
 
   const bspAdapter = createMockBspAdapter();
-  const interpret = createInterpreter(async () => null);
+  const interpret = createInterpreter(async () => null, repository);
   const runtimeDeps = { repository, bspAdapter, interpret, sandboxPhoneNumberId: SANDBOX_PHONE_NUMBER_ID };
   const testerWaId = "919888888888";
 

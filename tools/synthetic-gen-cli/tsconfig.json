@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": ["src"],
+  "references": [
+    { "path": "../../packages/shared-types" },
+    { "path": "../../packages/schema" },
+    { "path": "../../packages/eval" },
+    { "path": "../../packages/synthetic-gen" },
+    { "path": "../../apps/interview-api" }
+  ]
+}

@@ -1,8 +1,3 @@
-// Generated from a live local Supabase instance (migrations under
-// supabase/migrations/ applied via `supabase db reset`) with
-// `supabase gen types typescript --local`. Regenerate the same way after
-// any schema change — do not hand-edit.
-
 export type Json =
   | string
   | number
@@ -83,6 +78,51 @@ export type Database = {
           created_at?: string
           id?: string
           role?: string
+        }
+        Relationships: []
+      }
+      bookings: {
+        Row: {
+          context_id: string
+          context_type: string
+          created_at: string
+          ends_at: string
+          held_until: string | null
+          id: string
+          provider: string
+          reminder_sent_at: string | null
+          service: string
+          starts_at: string
+          status: string
+          wa_id: string
+        }
+        Insert: {
+          context_id: string
+          context_type: string
+          created_at?: string
+          ends_at: string
+          held_until?: string | null
+          id?: string
+          provider?: string
+          reminder_sent_at?: string | null
+          service: string
+          starts_at: string
+          status?: string
+          wa_id: string
+        }
+        Update: {
+          context_id?: string
+          context_type?: string
+          created_at?: string
+          ends_at?: string
+          held_until?: string | null
+          id?: string
+          provider?: string
+          reminder_sent_at?: string | null
+          service?: string
+          starts_at?: string
+          status?: string
+          wa_id?: string
         }
         Relationships: []
       }
@@ -227,32 +267,44 @@ export type Database = {
       }
       draft_sessions: {
         Row: {
+          capability_stage: string
           confirmed: boolean
           created_at: string
           expires_at: string | null
           id: string
           lob_ambiguity_asked: boolean
           owner_contact: string | null
+          owner_info_asked: boolean
+          owner_name: string | null
+          pending_primitives: string[] | null
           status: string
           tenant_id: string | null
         }
         Insert: {
+          capability_stage?: string
           confirmed?: boolean
           created_at?: string
           expires_at?: string | null
           id?: string
           lob_ambiguity_asked?: boolean
           owner_contact?: string | null
+          owner_info_asked?: boolean
+          owner_name?: string | null
+          pending_primitives?: string[] | null
           status?: string
           tenant_id?: string | null
         }
         Update: {
+          capability_stage?: string
           confirmed?: boolean
           created_at?: string
           expires_at?: string | null
           id?: string
           lob_ambiguity_asked?: boolean
           owner_contact?: string | null
+          owner_info_asked?: boolean
+          owner_name?: string | null
+          pending_primitives?: string[] | null
           status?: string
           tenant_id?: string | null
         }
@@ -303,6 +355,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      prompt_templates: {
+        Row: {
+          key: string
+          template: string
+          updated_at: string
+        }
+        Insert: {
+          key: string
+          template: string
+          updated_at?: string
+        }
+        Update: {
+          key?: string
+          template?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       support_tickets: {
         Row: {

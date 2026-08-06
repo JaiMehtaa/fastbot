@@ -10,18 +10,19 @@ export type FaqFallbackFn = (question: string, faqs: readonly Faq[]) => Promise<
 
 const QUESTION_PREFIX = "faq_";
 const BACK_TO_LIST_ID = "back_to_faq_list";
+// See catalogue.ts's MAX_CATALOGUE_ITEMS for why: reserves one of WhatsApp's
+// 10-row list cap for an always-present "Main Menu" row, since a list
+// message's single button only opens the list — it can't carry a second,
+// separate button the way a button-type message can.
+const MAX_FAQ_QUESTIONS = 9;
 
 function renderList(waId: string, faqs: readonly Faq[]): HandlerOutput {
+  const rows = faqs.slice(0, MAX_FAQ_QUESTIONS).map((faq, index) => ({ id: `${QUESTION_PREFIX}${index}`, title: faq.question }));
+  rows.push({ id: "nav_main_menu", title: "↩️ Main Menu" });
+
   return {
     nextState: "FAQ_MENU",
-    outboundPayload: buildListMessage(
-      waId,
-      "FAQs ❓",
-      "Choose a question, or just type your own.",
-      "Tap a question",
-      "View FAQs",
-      faqs.map((faq, index) => ({ id: `${QUESTION_PREFIX}${index}`, title: faq.question })),
-    ),
+    outboundPayload: buildListMessage(waId, "FAQs ❓", "Choose a question, or just type your own.", "Tap a question", "View FAQs", rows),
   };
 }
 

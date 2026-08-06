@@ -38,6 +38,14 @@ export default async function DashboardOverviewPage() {
                 </span>
               </div>
               {tenant.phoneNumberId && <p className="mt-1 text-xs text-neutral-500">Number: {tenant.phoneNumberId}</p>}
+              <div className="mt-2 flex gap-3">
+                <Link href={`/dashboard/${tenant.tenantId}/edit`} className="text-xs text-emerald-400 underline">
+                  Edit
+                </Link>
+                <Link href={`/dashboard/${tenant.tenantId}/inbox`} className="text-xs text-emerald-400 underline">
+                  Inbox
+                </Link>
+              </div>
             </li>
           ))}
         </ul>

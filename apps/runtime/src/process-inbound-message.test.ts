@@ -44,10 +44,15 @@ function replyMessage(interactiveReplyId: string, waId = "wa-1"): InboundMessage
 }
 
 function makeDeps(overrides: Partial<ProcessInboundMessageDeps> = {}): ProcessInboundMessageDeps {
+  // one shared repository instance for both fields — booking's handler writes through
+  // whatever repository createInterpreter closed over, and it must be the same store
+  // deps.repository (and any test inspecting it) reads from, or writes would silently
+  // land in a repository no one's looking at.
+  const repository = overrides.repository ?? createInMemoryRepository();
   return {
-    repository: createInMemoryRepository(),
+    repository,
     bspAdapter: createMockBspAdapter(),
-    interpret: createInterpreter(async () => null),
+    interpret: createInterpreter(async () => null, repository),
     sandboxPhoneNumberId: SANDBOX_NUMBER,
     ...overrides,
   };
@@ -151,6 +156,37 @@ test("processInboundMessage escalation creates a support ticket and a dashboard 
   assert.equal(repository.dashboardNotifications[0]?.type, "escalation");
 });
 
+test("processInboundMessage escalation ticket summary carries the customer's actual question, not the static escalation_prompt", async () => {
+  const repository = createInMemoryRepository();
+  const bspAdapter = createMockBspAdapter();
+  const compiled = compile(retailDraft());
+  repository.tenantsByPhoneNumberId.set("tenant-number", { tenantId: "tenant-1", compiledConfig: compiled });
+  // Simulate the customer's free-text question from a prior turn (faq_support's
+  // fallback already handed off to ESCALATION_CONFIRM) already being logged —
+  // exactly what a real prior turn's insertChatHistory call would have done.
+  await repository.insertChatHistory({
+    contextType: "tenant",
+    contextId: "tenant-1",
+    waId: "wa-1",
+    messageId: "m-prior-question",
+    direction: "inbound",
+    payload: { waId: "wa-1", messageId: "m-prior-question", type: "text", text: "Do you deliver to Bangalore?", receivedAt: new Date().toISOString() },
+    status: "received",
+  });
+  await repository.upsertConversationState({
+    contextType: "tenant",
+    contextId: "tenant-1",
+    waId: "wa-1",
+    currentState: "ESCALATION_CONFIRM",
+    lastInteraction: new Date().toISOString(),
+  });
+
+  await processInboundMessage("tenant-number", replyMessage("escalation_confirm"), makeDeps({ repository, bspAdapter }));
+
+  assert.equal(repository.supportTickets.length, 1);
+  assert.equal(repository.supportTickets[0]?.summary, "Do you deliver to Bangalore?");
+});
+
 test("processInboundMessage escalation on a sandbox draft creates a ticket but no dashboard notification (no tenant to notify)", async () => {
   const repository = createInMemoryRepository();
   const bspAdapter = createMockBspAdapter();
@@ -190,11 +226,7 @@ test("processInboundMessage: an ambiguous fallback question hands off to the esc
     lastInteraction: new Date().toISOString(),
   });
 
-  await processInboundMessage(
-    "tenant-number",
-    textMessage("something totally unrelated"),
-    makeDeps({ repository, bspAdapter, interpret: createInterpreter(async () => null) }),
-  );
+  await processInboundMessage("tenant-number", textMessage("something totally unrelated"), makeDeps({ repository, bspAdapter }));
 
   const state = await repository.getConversationState("tenant", "tenant-1", "wa-1");
   assert.equal(state?.currentState, "ESCALATION_CONFIRM");

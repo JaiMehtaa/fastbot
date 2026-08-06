@@ -6,6 +6,7 @@ import type {
   PrimitiveKey,
   StateTableEntry,
 } from "@whatsapp-bot-platform/shared-types";
+import { expandBusinessHours } from "./hours.js";
 import { validateDraft } from "./validate.js";
 
 /**
@@ -61,7 +62,16 @@ export function compile(draftConfig: DraftConfig, sourceId: string = draftConfig
 
   for (const primitiveKey of draftConfig.selectedPrimitives) {
     const schema = getPrimitive(primitiveKey);
-    const handlerArgs = draftConfig.fieldValues[primitiveKey] ?? {};
+    const handlerArgs: Record<string, unknown> = { ...(draftConfig.fieldValues[primitiveKey] ?? {}) };
+    // booking's available slots are generated from business_info.hours, not a duplicate field of
+    // its own (validateDraft's cross-primitive check already requires business_info.hours whenever
+    // booking is selected) — this is the one place that cross-primitive dependency actually gets
+    // resolved into data the runtime handler can use, since handlerArgs is otherwise scoped to just
+    // one primitive's own fieldValues.
+    if (primitiveKey === "booking") {
+      const rawHours = (draftConfig.fieldValues.business_info?.hours ?? {}) as Record<string, unknown>;
+      handlerArgs.businessHours = expandBusinessHours(rawHours);
+    }
     const [entryState] = schema.stateContract;
 
     if (entryState) {

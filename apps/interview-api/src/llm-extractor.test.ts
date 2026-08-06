@@ -8,8 +8,13 @@ function missing(primitiveKey: MissingField["primitiveKey"], fieldKey: string): 
   return [{ primitiveKey, fieldKey, label: fieldKey, interviewHint: "?" }];
 }
 
-function fakeClient(content: string): OpenAiClient {
-  return { chat: async () => ({ content }) };
+function fakeClient(content: string, capture?: { seenPrompt?: string }): OpenAiClient {
+  return {
+    chat: async (options) => {
+      if (capture) capture.seenPrompt = options.messages[0]?.content;
+      return { content };
+    },
+  };
 }
 
 test("extracts multiple fields answered in a single message", async () => {
@@ -111,4 +116,14 @@ test("validates a catalogue array item against its required item fields", async 
   const extract = createLlmExtractFields(client);
   const result = await extract({ freeText: "Lavender Bar, https://example.com/lavender", missingFields: missing("catalogue", "items") });
   assert.equal(result.length, 1);
+});
+
+test("uses whatever getInstructions resolves to instead of the hardcoded default — proves admin overrides actually take effect", async () => {
+  const capture: { seenPrompt?: string } = {};
+  const client = fakeClient(JSON.stringify([]), capture);
+  const extract = createLlmExtractFields(client, async () => "Only extract nicknames, ignore everything else.");
+  await extract({ freeText: "we're Zap Home Care", missingFields: missing("business_info", "business_name") });
+  assert.match(capture.seenPrompt ?? "", /Only extract nicknames, ignore everything else\./);
+  // the field description and JSON output-format instructions must still be present regardless of the override
+  assert.match(capture.seenPrompt ?? "", /"extractions"/);
 });

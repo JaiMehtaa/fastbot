@@ -47,7 +47,12 @@ export function validateField(
       if (typeof value !== "string") invalid(`"${fieldPath}" must be a string`);
       break;
     case "number":
+      // Every current use of "number" (price, durationMinutes, slotGranularityMinutes,
+      // bookingWindowDays) is a naturally non-negative quantity — found live via QA
+      // testing that a negative price sailed through validation and rendered as
+      // "Price: -50" in a customer-facing WhatsApp message.
       if (typeof value !== "number" || Number.isNaN(value)) invalid(`"${fieldPath}" must be a number`);
+      else if (value < 0) invalid(`"${fieldPath}" must not be negative`);
       break;
     case "boolean":
       if (typeof value !== "boolean") invalid(`"${fieldPath}" must be a boolean`);

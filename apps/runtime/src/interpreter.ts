@@ -1,9 +1,12 @@
-import type { CompiledConfig, InboundMessage } from "@whatsapp-bot-platform/shared-types";
+import type { CompiledConfig, ConversationContextType, InboundMessage } from "@whatsapp-bot-platform/shared-types";
+import { createBookingHandler } from "./handlers/booking.js";
 import { businessInfoHandler } from "./handlers/business-info.js";
 import { catalogueHandler } from "./handlers/catalogue.js";
 import { createFaqSupportHandler, type FaqFallbackFn } from "./handlers/faq-support.js";
-import { humanEscalationHandler } from "./handlers/human-escalation.js";
+import { createHumanEscalationHandler } from "./handlers/human-escalation.js";
+import { leadCaptureHandler } from "./handlers/lead-capture.js";
 import type { HandlerOutput, PrimitiveHandler } from "./handlers/types.js";
+import type { RuntimeRepository } from "./repository.js";
 import { buildRootMenuMessage } from "./whatsapp-payload.js";
 
 const MAX_HANDOFF_HOPS = 5;
@@ -20,13 +23,21 @@ const MAX_HANDOFF_HOPS = 5;
  * fallback handing off to human_escalation) — the interpreter chases that
  * chain generically rather than any handler special-casing another
  * primitive's behavior.
+ *
+ * `repository` is injected the same way `faqFallback` is — booking and
+ * human_escalation are the primitives whose handlers need to read/write
+ * live data rather than being a pure function of their compiled config, so
+ * they get the same "close over an injected capability at handler-creation
+ * time" treatment, not a special case in dispatch() itself.
  */
-export function createInterpreter(faqFallback: FaqFallbackFn) {
+export function createInterpreter(faqFallback: FaqFallbackFn, repository: RuntimeRepository) {
   const handlersByPrimitive: Partial<Record<string, PrimitiveHandler>> = {
     business_info: businessInfoHandler,
     catalogue: catalogueHandler,
     faq_support: createFaqSupportHandler(faqFallback),
-    human_escalation: humanEscalationHandler,
+    human_escalation: createHumanEscalationHandler(repository),
+    lead_capture: leadCaptureHandler,
+    booking: createBookingHandler(repository),
   };
 
   async function dispatch(
@@ -34,6 +45,7 @@ export function createInterpreter(faqFallback: FaqFallbackFn) {
     state: string,
     waId: string,
     message: InboundMessage,
+    context: { contextType: ConversationContextType; contextId: string },
   ): Promise<HandlerOutput> {
     const stateEntry = compiledConfig.stateTable[state];
     if (!stateEntry) {
@@ -47,7 +59,7 @@ export function createInterpreter(faqFallback: FaqFallbackFn) {
       throw new Error(`No handler registered for primitive "${stateEntry.primitiveKey}"`);
     }
 
-    return handler({ waId, currentState: state, message, stateEntry });
+    return handler({ waId, currentState: state, message, stateEntry, context });
   }
 
   return async function interpret(
@@ -55,6 +67,7 @@ export function createInterpreter(faqFallback: FaqFallbackFn) {
     currentState: string,
     waId: string,
     message: InboundMessage,
+    context: { contextType: ConversationContextType; contextId: string },
   ): Promise<HandlerOutput> {
     let targetState = currentState;
 
@@ -67,7 +80,7 @@ export function createInterpreter(faqFallback: FaqFallbackFn) {
       targetState = entry.targetState;
     }
 
-    let result = await dispatch(compiledConfig, targetState, waId, message);
+    let result = await dispatch(compiledConfig, targetState, waId, message, context);
     let hops = 0;
 
     while (!result.outboundPayload) {
@@ -77,7 +90,7 @@ export function createInterpreter(faqFallback: FaqFallbackFn) {
       if (hops >= MAX_HANDOFF_HOPS) {
         throw new Error(`Handler handoff chain exceeded ${MAX_HANDOFF_HOPS} hops without producing an outbound payload`);
       }
-      result = await dispatch(compiledConfig, result.nextState, waId, message);
+      result = await dispatch(compiledConfig, result.nextState, waId, message, context);
       hops += 1;
     }
 

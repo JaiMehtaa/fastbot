@@ -145,7 +145,15 @@ function extractNameAndLinkItem(nameField: FieldDefinition, urlField: FieldDefin
   if (!urlMatch) return null;
 
   const url = urlMatch[0].replace(/[.,)]+$/, "");
-  const remainder = text.replace(urlMatch[0], "").trim();
+  // "Name, https://..." leaves a trailing separator comma on the name after
+  // the URL itself is stripped out — trim() only removes whitespace, not
+  // punctuation, so this needs its own pass (found live: "Lavender Oatmeal
+  // Bar," kept the comma all the way into the rendered WhatsApp menu).
+  const remainder = text
+    .replace(urlMatch[0], "")
+    .trim()
+    .replace(/[,;:]+$/, "")
+    .trim();
   const explicitName = stripNameTriggers(remainder) || remainder;
   if (explicitName) {
     return { value: [{ [nameField.key]: explicitName, [urlField.key]: url }], confidence: 0.75 };

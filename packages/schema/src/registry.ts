@@ -1,8 +1,10 @@
 import type { PrimitiveKey, PrimitiveSchema } from "@whatsapp-bot-platform/shared-types";
+import { bookingPrimitive } from "./primitives/booking.js";
 import { businessInfoPrimitive } from "./primitives/business_info.js";
 import { cataloguePrimitive } from "./primitives/catalogue.js";
 import { faqSupportPrimitive } from "./primitives/faq_support.js";
 import { humanEscalationPrimitive } from "./primitives/human_escalation.js";
+import { leadCapturePrimitive } from "./primitives/lead_capture.js";
 
 /**
  * Every primitive added here is automatically what apps/admin's registry view
@@ -14,6 +16,8 @@ export const primitiveRegistry: Partial<Record<PrimitiveKey, PrimitiveSchema>> =
   catalogue: cataloguePrimitive,
   faq_support: faqSupportPrimitive,
   human_escalation: humanEscalationPrimitive,
+  lead_capture: leadCapturePrimitive,
+  booking: bookingPrimitive,
 };
 
 export function getPrimitive(key: PrimitiveKey): PrimitiveSchema {

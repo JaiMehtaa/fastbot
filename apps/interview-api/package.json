@@ -17,6 +17,7 @@
     "@whatsapp-bot-platform/compiler": "workspace:*",
     "@whatsapp-bot-platform/eval": "workspace:*",
     "@whatsapp-bot-platform/db": "workspace:*",
+    "@whatsapp-bot-platform/prompt-config": "workspace:*",
     "fastify": "^5.0.0"
   },
   "devDependencies": {

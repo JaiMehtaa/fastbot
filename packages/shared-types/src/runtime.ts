@@ -25,6 +25,7 @@ export interface InboundMessage {
 
 export type DashboardNotificationType =
   | "escalation"
+  | "lead"
   | "delivery_failure"
   | "config_validation_warning";
 
